@@ -32,13 +32,14 @@ class Radio:
     def _load(self):
         out = []
         try:
-            for line in open(self.file):
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                name, _, url = line.partition("|")
-                if url:
-                    out.append({"name": name.strip(), "url": url.strip()})
+            with open(self.file) as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    name, _, url = line.partition("|")
+                    if url:
+                        out.append({"name": name.strip(), "url": url.strip()})
         except Exception:
             pass
         return out
