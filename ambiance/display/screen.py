@@ -114,22 +114,36 @@ def render(st, art):
 
 
 _panel = None
+_led = None
 
 
 def push(img):
     # VERIFIED AmpliPi wiring — secondary SPI, cs=D44 dc=D39, backlight PWM D12, rst=None, rot 270.
-    global _panel
-    if _panel is None:
-        import board, busio, digitalio, pwmio
-        from adafruit_rgb_display import ili9341
-        spi = busio.SPI(clock=board.SCLK_2, MOSI=board.MOSI_2, MISO=board.MISO_2)
-        disp = ili9341.ILI9341(spi, cs=digitalio.DigitalInOut(board.D44),
-                               dc=digitalio.DigitalInOut(board.D39), rst=None,
-                               baudrate=16000000, rotation=270)
-        led = pwmio.PWMOut(board.D12, frequency=5000, duty_cycle=0)
-        led.duty_cycle = 65535          # backlight on (there's no RST; blank until first image)
-        _panel = disp
-    _panel.image(img)
+    global _panel, _led
+    try:
+        if _panel is None:
+            import board, busio, digitalio, pwmio
+            from adafruit_rgb_display import ili9341
+            spi = busio.SPI(clock=board.SCLK_2, MOSI=board.MOSI_2, MISO=board.MISO_2)
+            disp = ili9341.ILI9341(spi, cs=digitalio.DigitalInOut(board.D44),
+                                   dc=digitalio.DigitalInOut(board.D39), rst=None,
+                                   baudrate=16000000, rotation=270)
+            _led = pwmio.PWMOut(board.D12, frequency=5000, duty_cycle=0)
+            _led.duty_cycle = 65535         # backlight on (there's no RST; blank until first image)
+            _panel = disp
+        _panel.image(img)
+    except Exception:
+        # a wedged SPI/panel handle never recovers on its own — drop it (and release the
+        # backlight PWM so re-init can re-claim board.D12) so the next loop rebuilds the bus
+        # + panel from scratch. main() logs the error and retries in 1s.
+        try:
+            if _led is not None:
+                _led.deinit()
+        except Exception:
+            pass
+        _panel = None
+        _led = None
+        raise
 
 
 def main():

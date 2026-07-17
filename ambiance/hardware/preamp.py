@@ -38,8 +38,24 @@ MIN_VOL_DB = -80
 MAX_VOL_DB = 0
 
 
+# Health surface for the app's monitor. _add_alert fires ONLY when self-heal could not fix
+# the preamp (recovery on cooldown or itself failed) -> user attention needed. Successful
+# in-place recoveries bump _HEALTH["recoveries"] (informational — audio already self-healed).
+_HEALTH = {"alert_msg": None, "alert_ts": 0.0, "recoveries": 0}
+
+
 def _add_alert(msg):
+    _HEALTH["alert_msg"] = msg
+    _HEALTH["alert_ts"] = time.time()
     logging.getLogger(__name__).warning("ambiance preamp: %s", msg)
+
+
+def preamp_health(window_s=300):
+    """Preamp I2C health: 'ok' unless an unrecoverable alert fired within the last window_s."""
+    ts = _HEALTH["alert_ts"]
+    if ts and (time.time() - ts) < window_s:
+        return {"ok": False, "detail": _HEALTH["alert_msg"], "recoveries": _HEALTH["recoveries"]}
+    return {"ok": True, "detail": None, "recoveries": _HEALTH["recoveries"]}
 
 # TODO: move constants like this to their own file
 DEBUG_PREAMPS = False  # print out preamp state after register write
@@ -298,6 +314,7 @@ class _Preamps:
           time.sleep(0.001)
           self.bus.write_byte_data(addr, reg, val)
       logger.info('Preamp in-place recovery complete')
+      _HEALTH["recoveries"] += 1
       return True
     except Exception as exc:
       logger.error(f'Preamp in-place recovery failed: {exc}')

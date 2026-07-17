@@ -16,6 +16,9 @@ class Radio:
         self.mpc_base = ["mpc", "-h", mpd_host, "-p", str(mpd_port)]
         self.lock = threading.Lock()
         self.stations = self._load()
+        # Intended play-state: the health monitor self-heals only a DROPPED stream we meant
+        # to be playing — never an intentional stop (e.g. music-follows-you going away).
+        self.desired_playing = False
 
     # ---- mpc ----
     def _mpc(self, *args):
@@ -138,14 +141,39 @@ class Radio:
                 self._mpc("clear")
                 self._mpc("add", s["url"])
                 self._mpc("play")
+                self.desired_playing = True
                 return True
         return False
 
     def play(self):
+        self.desired_playing = True
         self._mpc("play")
 
     def stop(self):
+        self.desired_playing = False
         self._mpc("stop")
+
+    def health(self):
+        """(ok, detail): mpd reachable + no stream error. An intentional stop is healthy;
+        only an unreachable mpd or a dropped/errored stream we meant to play is not."""
+        st = self._mpc("status")
+        if not st:
+            return False, "mpd niet bereikbaar"
+        if "ERROR" in st.upper():
+            return False, "streamfout"
+        if self.desired_playing and "[playing]" not in st:
+            return False, "radio gestopt (drop)"
+        return True, None
+
+    def recover(self):
+        """Re-establish a dropped/errored stream: clear the error + replay the current
+        (or first) station. Returns True if a replay was issued."""
+        cur = self.current_station()
+        if cur and self.play_station(cur):
+            return True
+        if self.stations:
+            return self.play_station(self.stations[0]["name"])
+        return False
 
     def cycle(self, delta):
         names = [s["name"] for s in self.stations]

@@ -23,12 +23,22 @@ class RadioState(BaseModel):
     stations: List[str] = []
 
 
+class Health(BaseModel):
+    ok: bool = True
+    issues: List[str] = []        # human-readable (Dutch), for the notification body
+    mpd: str = "ok"               # ok | <reason>
+    preamp: str = "ok"            # ok | wedged
+    recoveries: int = 0           # count of successful in-place self-heals (informational)
+    checked: int = 0              # unix ts of the last health sweep
+
+
 class Status(BaseModel):
     zones: List[Zone]
     radio: RadioState
     master_vol: int
     master_mute: bool
     siren: bool
+    health: Health = Health()
 
 
 class Station(BaseModel):

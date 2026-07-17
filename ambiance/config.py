@@ -42,3 +42,4 @@ class Config:
         self.mpd_host = os.environ.get("AMBIANCE_MPD_HOST", "127.0.0.1")
         self.mpd_port = int(os.environ.get("AMBIANCE_MPD_PORT", "6600"))
         self.port = int(os.environ.get("AMBIANCE_PORT", "8080"))
+        self.health_interval = int(os.environ.get("AMBIANCE_HEALTH_INTERVAL", "15"))

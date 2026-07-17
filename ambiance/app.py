@@ -21,6 +21,7 @@ from .announce import Announcer
 from .alarm import Siren
 from .config import Config
 from .cover import Cover
+from .health import HealthMonitor
 from .radio import Radio
 from .hardware.zones import Zones
 
@@ -35,6 +36,7 @@ class Controller:
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
                                    is_busy=lambda: self.siren.active)
         self.cover = Cover()
+        self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
 
     def status(self):
         return {
@@ -43,6 +45,7 @@ class Controller:
             "master_vol": self.zones.master_vol(),
             "master_mute": self.zones.master_mute(),
             "siren": self.siren.active,
+            "health": self.monitor.state,
         }
 
     def alarm(self, on):
@@ -192,6 +195,7 @@ def cover():
 
 @app.on_event("startup")
 def _startup():
+    ctl.monitor.start()   # background health sweeps + dropped-stream self-heal
     # boot-to-radio: after mpd is up, if nothing is queued, play the default station
     def boot():
         time.sleep(4)
