@@ -1,0 +1,13 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!--
+  Advertises the Ambiance AmpliPi controller over mDNS so the openHAB `ambianceamplipi`
+  binding auto-discovers it. Install to /etc/avahi/services/ on the controller host.
+-->
+<service-group>
+  <name replace-wildcards="yes">Ambiance AmpliPi on %h</name>
+  <service>
+    <type>_ambianceamplipi._tcp</type>
+    <port>8080</port>
+  </service>
+</service-group>
