@@ -32,6 +32,14 @@ class Health(BaseModel):
     checked: int = 0              # unix ts of the last health sweep
 
 
+class Group(BaseModel):
+    name: str
+    zones: List[int]      # zone ids
+    vol: int              # average of the group's zone volumes
+    mute: bool            # all zones muted
+    power: bool           # all zones powered
+
+
 class Status(BaseModel):
     zones: List[Zone]
     radio: RadioState
@@ -39,6 +47,7 @@ class Status(BaseModel):
     master_mute: bool
     siren: bool
     health: Health = Health()
+    groups: List[Group] = []
 
 
 class Station(BaseModel):
@@ -60,6 +69,12 @@ class ZoneUpdate(BaseModel):
 class MasterUpdate(BaseModel):
     vol: Optional[int] = None
     mute: Optional[bool] = None
+
+
+class GroupUpdate(BaseModel):
+    vol: Optional[int] = None
+    mute: Optional[bool] = None
+    power: Optional[bool] = None
 
 
 class StationSelect(BaseModel):

@@ -75,6 +75,11 @@
     <input type="range" min="0" max="100" id="mvol" oninput="mv(this.value)" onchange="mvCommit(this.value)">
   </div>
 
+  <div class="card" id="groupscard" style="display:none">
+    <div class="lbl" style="margin-top:0">Groepen</div>
+    <div id="groups"></div>
+  </div>
+
   <div class="card">
     <div class="lbl" style="margin-top:0">Zones</div>
     <div id="zones"></div>
@@ -169,6 +174,23 @@ function renderZones(zones){
              oninput="zVol(${z.id},this.value)">
     </div>`; }).join('');
 }
+function renderGroups(groups){
+  const card = document.getElementById('groupscard');
+  if (!groups || !groups.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('groups').innerHTML = groups.map((g,i)=>{
+    const silent = g.mute || !g.power;
+    return `<div class="zone">
+      <div class="zname" style="opacity:${silent?.5:1}">${esc(g.name)}</div>
+      <div class="zctl">
+        <span class="pill ${g.power?'on':''}" onclick="gset(${i},{power:${!g.power}})">${g.power?'Aan':'Uit'}</span>
+        <span class="pill ${g.mute?'muted':''}" onclick="gset(${i},{mute:${!g.mute}})">${g.mute?'Gedempt':'Dempen'}</span>
+      </div>
+      <input class="zvol" type="range" min="0" max="100" value="${g.vol}" oninput="gvol(${i},this.value)">
+    </div>`; }).join('');
+}
+function gset(i, body){ const g=ST&&ST.groups[i]; if(g) patch('/api/groups/'+encodeURIComponent(g.name), body).then(()=>setTimeout(refresh,250)); }
+function gvol(i, v){ const g=ST&&ST.groups[i]; if(g) patch('/api/groups/'+encodeURIComponent(g.name), {vol:+v}); }
 function apply(d){
   ST = d;
   const r = d.radio || {};
@@ -180,6 +202,7 @@ function apply(d){
   if (!dragging) document.getElementById('mvol').value = d.master_vol;
   document.getElementById('mmute').className = 'pill' + (d.master_mute?' muted':'');
   renderZones(d.zones || []);
+  renderGroups(d.groups || []);
   const h = d.health || {ok:true};
   const he = document.getElementById('health');
   he.textContent = h.ok ? 'ok' : (h.issues||[]).join('; ') || 'probleem';

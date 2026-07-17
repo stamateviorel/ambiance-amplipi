@@ -21,6 +21,24 @@ def _load_zones(path):
     return zones
 
 
+def _load_groups(path):
+    """Zone groups: `Group Name | comma-separated zone ids`  (e.g. `Downstairs|2,3,4`)."""
+    groups = []
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                name, _, ids = line.partition("|")
+                zids = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+                if name.strip() and zids:
+                    groups.append({"name": name.strip(), "zones": zids})
+    except Exception:
+        pass
+    return groups
+
+
 # Reference deployment defaults (this site). A shareable install overrides via env + files.
 _DEFAULT_ZONES = [{"id": i, "name": n, "default_pct": p} for i, (n, p) in enumerate(
     [("Office", 70), ("Wc up", 59), ("Main area", 80),
@@ -32,8 +50,10 @@ class Config:
         base = os.environ.get("AMBIANCE_DIR", "/home/pi/ambiance-amplipi")
         self.zones_file = os.environ.get("AMBIANCE_ZONES", base + "/config/zones.conf")
         self.stations_file = os.environ.get("AMBIANCE_STATIONS", base + "/config/stations.conf")
+        self.groups_file = os.environ.get("AMBIANCE_GROUPS", base + "/config/groups.conf")
         self.alarm_wav = os.environ.get("AMBIANCE_ALARM", base + "/assets/alarm.wav")
         self.zones = _load_zones(self.zones_file) or _DEFAULT_ZONES
+        self.groups = _load_groups(self.groups_file)
         self.hw = os.environ.get("AMBIANCE_HW", "mock")               # mock | rpi (rpi resets preamps)
         self.dry = os.environ.get("AMBIANCE_DRY", "1") == "1"          # fail-safe: dry unless =0
         self.announce_dev = os.environ.get("AMBIANCE_ANNOUNCE_DEV", "ch0boost")

@@ -29,6 +29,13 @@ class TestConfigZones(unittest.TestCase):
     def test_missing_file(self):
         self.assertEqual(_load_zones("/no/such/file"), [])
 
+    def test_parse_groups(self):
+        from ambiance.config import _load_groups
+        g = _load_groups(self._write("# c\nBoven|0,1\nBeneden|2,3,4\nbad|\n|1,2\n"))
+        self.assertEqual(len(g), 2)                       # 'bad|' (no ids) + '|1,2' (no name) skipped
+        self.assertEqual(g[0], {"name": "Boven", "zones": [0, 1]})
+        self.assertEqual(g[1]["zones"], [2, 3, 4])
+
 
 class _FakeRadio:
     def __init__(self, healthy):

@@ -37,6 +37,7 @@ class Controller:
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
                                    is_busy=lambda: self.siren.active)
         self.cover = Cover()
+        self.groups = getattr(cfg, "groups", [])
         self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
 
     def status(self):
@@ -47,7 +48,35 @@ class Controller:
             "master_mute": self.zones.master_mute(),
             "siren": self.siren.active,
             "health": self.monitor.state,
+            "groups": self._group_states(),
         }
+
+    def _group_states(self):
+        snap = {z["id"]: z for z in self.zones.snapshot()}
+        out = []
+        for g in self.groups:
+            zs = [snap[i] for i in g["zones"] if i in snap]
+            if not zs:
+                continue
+            out.append({"name": g["name"], "zones": [z["id"] for z in zs],
+                        "vol": round(sum(z["vol"] for z in zs) / len(zs)),
+                        "mute": all(z["mute"] for z in zs),
+                        "power": all(z["power"] for z in zs)})
+        return out
+
+    def apply_group(self, name, vol=None, mute=None, power=None):
+        g = next((g for g in self.groups if g["name"] == name), None)
+        if not g:
+            return False
+        for i in g["zones"]:
+            if 0 <= i < self.zones.n:
+                if vol is not None:
+                    self.zones.set_vol(i, vol)
+                if mute is not None:
+                    self.zones.set_mute(i, mute)
+                if power is not None:
+                    self.zones.set_power(i, power)
+        return True
 
     def alarm(self, on):
         # safety-critical: independent of mpd — fires even if the radio player is dead
@@ -177,6 +206,12 @@ def zones_master(u: models.MasterUpdate):
         ctl.zones.set_master_vol(u.vol)
     if u.mute is not None:
         ctl.zones.set_master_mute(u.mute)
+    return ctl.status()
+
+
+@app.patch("/api/groups/{name}", response_model=models.Status)
+def group_update(name: str, u: models.GroupUpdate):
+    ctl.apply_group(name, u.vol, u.mute, u.power)
     return ctl.status()
 
 
