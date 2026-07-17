@@ -131,7 +131,7 @@ function apply(d){
   he.textContent = h.ok ? 'ok' : (h.issues||[]).join('; ') || 'probleem';
   he.className = h.ok ? 'ok' : 'bad';
   const art = document.getElementById('art');
-  if (r.playing && r.title) art.src = '/api/cover?t=' + Math.floor(Date.now()/15000); else art.removeAttribute('src');
+  if (r.playing) art.src = '/api/cover?t=' + Math.floor(Date.now()/15000); else art.removeAttribute('src');
   document.getElementById('clock').textContent = new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
 }
 async function refresh(){ const d = await get('/api/status'); if (d) apply(d); }

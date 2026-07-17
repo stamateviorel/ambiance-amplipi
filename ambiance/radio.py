@@ -37,17 +37,21 @@ class Radio:
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    name, _, url = line.partition("|")
-                    if url:
-                        out.append({"name": name.strip(), "url": url.strip()})
+                    parts = line.split("|")
+                    if len(parts) >= 2 and parts[1].strip():
+                        st = {"name": parts[0].strip(), "url": parts[1].strip()}
+                        if len(parts) >= 3 and parts[2].strip():   # optional logo URL
+                            st["logo"] = parts[2].strip()
+                        out.append(st)
         except Exception:
             pass
         return out
 
     def _save(self):
-        header = ("# ambiance-amplipi station list (edited via openHAB / the API).\n"
-                  "# Format:  Display Name | Stream URL   — the FIRST entry is the default (boot) station.\n\n")
-        body = "".join("%s|%s\n" % (s["name"], s["url"]) for s in self.stations)
+        header = ("# ambiance-amplipi station list (edited via the web UI / the API).\n"
+                  "# Format:  Display Name | Stream URL | Logo URL(optional)  — FIRST entry = default (boot).\n\n")
+        body = "".join("%s|%s%s\n" % (s["name"], s["url"], ("|" + s["logo"]) if s.get("logo") else "")
+                       for s in self.stations)
         d = os.path.dirname(self.file) or "."
         try:
             fd, tmp = tempfile.mkstemp(dir=d, prefix=".stations-", suffix=".tmp")
@@ -71,19 +75,22 @@ class Radio:
         return str(s or "").replace("|", " ").replace("\n", " ").replace("\r", " ").strip()
 
     # CRUD -> (ok, error)
-    def add_station(self, name, url):
-        name, url = self._clean(name), self._clean(url)
+    def add_station(self, name, url, logo=None):
+        name, url, logo = self._clean(name), self._clean(url), self._clean(logo)
         if not name or not url:
             return False, "naam en URL vereist"
         with self.lock:
             if any(s["name"] == name for s in self.stations):
                 return False, "naam bestaat al"
-            self.stations.append({"name": name, "url": url})
+            st = {"name": name, "url": url}
+            if logo:
+                st["logo"] = logo
+            self.stations.append(st)
             self._save()
         return True, None
 
-    def update_station(self, orig, name, url):
-        orig, name, url = self._clean(orig), self._clean(name), self._clean(url)
+    def update_station(self, orig, name, url, logo=None):
+        orig, name, url, logo = self._clean(orig), self._clean(name), self._clean(url), self._clean(logo)
         if not name or not url:
             return False, "naam en URL vereist"
         with self.lock:
@@ -92,7 +99,10 @@ class Radio:
                 return False, "zender niet gevonden"
             if name != orig and any(s["name"] == name for s in self.stations):
                 return False, "naam bestaat al"
-            self.stations[i] = {"name": name, "url": url}
+            st = {"name": name, "url": url}
+            if logo:
+                st["logo"] = logo
+            self.stations[i] = st
             self._save()
         return True, None
 
@@ -122,6 +132,13 @@ class Radio:
         for s in self.stations:
             if s["url"] == url:
                 return s["name"]
+        return None
+
+    def current_station_logo(self):
+        url = self._mpc("-f", "%file%", "current").strip()
+        for s in self.stations:
+            if s["url"] == url:
+                return s.get("logo")
         return None
 
     def now_playing(self):

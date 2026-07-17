@@ -137,13 +137,13 @@ def get_stations():
 
 @app.post("/api/stations", response_model=models.ApiResult)
 def add_station(s: models.StationEdit):
-    ok, err = ctl.radio.add_station(s.name, s.url)
+    ok, err = ctl.radio.add_station(s.name, s.url, s.logo)
     return {"ok": ok, "error": err}
 
 
 @app.patch("/api/stations", response_model=models.ApiResult)
 def edit_station(s: models.StationEdit):
-    ok, err = ctl.radio.update_station(s.orig, s.name, s.url)
+    ok, err = ctl.radio.update_station(s.orig, s.name, s.url, s.logo)
     return {"ok": ok, "error": err}
 
 
@@ -200,7 +200,8 @@ def alarm_selftest():
 
 @app.get("/api/cover")
 def cover():
-    data = ctl.cover.bytes_for(ctl.radio.now_playing()["title"])
+    r = ctl.radio
+    data = ctl.cover.bytes_for(r.now_playing()["title"], r.current_station_logo(), r.current_station())
     if data:
         return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
     return Response(status_code=204)

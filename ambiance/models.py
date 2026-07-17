@@ -44,6 +44,7 @@ class Status(BaseModel):
 class Station(BaseModel):
     name: str
     url: str
+    logo: Optional[str] = None
 
 
 class Stations(BaseModel):
@@ -69,6 +70,7 @@ class StationEdit(BaseModel):
     orig: Optional[str] = None
     name: str
     url: str
+    logo: Optional[str] = None
 
 
 class Announcement(BaseModel):
