@@ -40,6 +40,11 @@ class Group(BaseModel):
     power: bool           # all zones powered
 
 
+class SleepState(BaseModel):
+    active: bool = False
+    remaining_s: int = 0
+
+
 class Status(BaseModel):
     zones: List[Zone]
     radio: RadioState
@@ -48,6 +53,7 @@ class Status(BaseModel):
     siren: bool
     health: Health = Health()
     groups: List[Group] = []
+    sleep: SleepState = SleepState()
 
 
 class Station(BaseModel):
@@ -75,6 +81,10 @@ class GroupUpdate(BaseModel):
     vol: Optional[int] = None
     mute: Optional[bool] = None
     power: Optional[bool] = None
+
+
+class SleepUpdate(BaseModel):
+    minutes: int = 0   # 0 cancels the sleep timer
 
 
 class StationSelect(BaseModel):

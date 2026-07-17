@@ -65,6 +65,14 @@
     </div>
     <div class="lbl">Zender</div>
     <select id="stations" onchange="selectStation(this.value)"></select>
+    <div class="lbl">Slaaptimer <span id="sleeprem" style="text-transform:none;color:var(--accent);font-weight:700"></span></div>
+    <div class="row" style="gap:6px; flex-wrap:wrap">
+      <button onclick="setSleep(15)">15m</button>
+      <button onclick="setSleep(30)">30m</button>
+      <button onclick="setSleep(60)">60m</button>
+      <button onclick="setSleep(90)">90m</button>
+      <button onclick="setSleep(0)">Uit</button>
+    </div>
   </div>
 
   <div class="card">
@@ -191,6 +199,7 @@ function renderGroups(groups){
 }
 function gset(i, body){ const g=ST&&ST.groups[i]; if(g) patch('/api/groups/'+encodeURIComponent(g.name), body).then(()=>setTimeout(refresh,250)); }
 function gvol(i, v){ const g=ST&&ST.groups[i]; if(g) patch('/api/groups/'+encodeURIComponent(g.name), {vol:+v}); }
+function setSleep(min){ post('/api/sleep', {minutes:min}); }
 function apply(d){
   ST = d;
   const r = d.radio || {};
@@ -203,6 +212,8 @@ function apply(d){
   document.getElementById('mmute').className = 'pill' + (d.master_mute?' muted':'');
   renderZones(d.zones || []);
   renderGroups(d.groups || []);
+  const sl = d.sleep || {};
+  document.getElementById('sleeprem').textContent = sl.active ? ('· ' + Math.ceil(sl.remaining_s/60) + ' min') : '';
   const h = d.health || {ok:true};
   const he = document.getElementById('health');
   he.textContent = h.ok ? 'ok' : (h.issues||[]).join('; ') || 'probleem';

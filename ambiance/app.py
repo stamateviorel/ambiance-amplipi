@@ -24,6 +24,7 @@ from .config import Config
 from .cover import Cover
 from .health import HealthMonitor
 from .radio import Radio
+from .sleep import Sleep
 from .hardware.zones import Zones
 
 
@@ -38,6 +39,7 @@ class Controller:
                                    is_busy=lambda: self.siren.active)
         self.cover = Cover()
         self.groups = getattr(cfg, "groups", [])
+        self.sleep = Sleep(on_fire=self.radio.stop)
         self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
 
     def status(self):
@@ -49,6 +51,7 @@ class Controller:
             "siren": self.siren.active,
             "health": self.monitor.state,
             "groups": self._group_states(),
+            "sleep": self.sleep.state(),
         }
 
     def _group_states(self):
@@ -212,6 +215,12 @@ def zones_master(u: models.MasterUpdate):
 @app.patch("/api/groups/{name}", response_model=models.Status)
 def group_update(name: str, u: models.GroupUpdate):
     ctl.apply_group(name, u.vol, u.mute, u.power)
+    return ctl.status()
+
+
+@app.post("/api/sleep", response_model=models.Status)
+def sleep_set(s: models.SleepUpdate):
+    ctl.sleep.set(s.minutes)   # 0 cancels
     return ctl.status()
 
 
