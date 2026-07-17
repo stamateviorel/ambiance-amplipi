@@ -37,6 +37,11 @@
   .pill.on { background:var(--ok); border-color:var(--ok); color:#04140c; font-weight:700; }
   .pill.muted { background:#c25; border-color:#c25; color:#fff; }
   .zvol { grid-column:1 / -1; }
+  input[type=text] { width:100%; background:var(--card2); color:var(--txt); border:1px solid var(--line);
+    border-radius:10px; padding:9px 10px; font-size:14px; margin-top:6px; }
+  .sthead { cursor:pointer; }
+  .strow { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
+  .strow:last-child { border-bottom:0; }
   .foot { color:var(--off); font-size:12px; text-align:center; margin-top:8px; }
   .foot b.ok { color:var(--ok); } .foot b.bad { color:#e66; }
 </style>
@@ -75,6 +80,24 @@
     <div id="zones"></div>
   </div>
 
+  <div class="card">
+    <div class="row sthead" style="justify-content:space-between" onclick="toggleAdmin()">
+      <span class="lbl" style="margin:0">Zenders beheren</span>
+      <span id="admchev">▸</span>
+    </div>
+    <div id="admin" style="display:none">
+      <div id="stationlist"></div>
+      <div class="lbl">Nieuwe zender / bewerken</div>
+      <input type="text" id="s_name" placeholder="Naam">
+      <input type="text" id="s_url" placeholder="Stream-URL">
+      <input type="text" id="s_logo" placeholder="Logo-URL (optioneel)">
+      <div class="row" style="gap:8px; margin-top:10px">
+        <button class="primary" id="savebtn" onclick="saveStation()">Toevoegen</button>
+        <button onclick="clearForm()">Wissen</button>
+      </div>
+    </div>
+  </div>
+
   <div class="foot">audio: <b id="health">…</b> · <span id="clock"></span></div>
 </div>
 
@@ -88,6 +111,37 @@ async function patch(u, body){ await fetch(u, {method:'PATCH', headers:{'Content
 
 function togglePlay(){ post(ST && ST.radio.playing ? '/api/radio/stop' : '/api/radio/play'); }
 function selectStation(name){ if(name) post('/api/radio', {station:name}); }
+
+// ---- station management ----
+let ADMIN = [], editingOrig = null;
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function vv(id){ return document.getElementById(id).value.trim(); }
+function toggleAdmin(){ const a=document.getElementById('admin'); const open=a.style.display==='none';
+  a.style.display=open?'block':'none'; document.getElementById('admchev').textContent=open?'▾':'▸'; if(open) loadStations(); }
+async function loadStations(){
+  const d = await get('/api/stations'); if(!d) return; ADMIN = d.stations;
+  document.getElementById('stationlist').innerHTML = ADMIN.map((s,i)=>
+    `<div class="strow"><div class="zname">${i===0?'★ ':''}${esc(s.name)}</div>
+      <div class="zctl">
+        <span class="pill" title="Als standaard" onclick="stDefault(${i})">★</span>
+        <span class="pill" title="Bewerken" onclick="stEdit(${i})">✎</span>
+        <span class="pill muted" title="Verwijderen" onclick="stDel(${i})">🗑</span>
+      </div></div>`).join('');
+}
+async function saveStation(){
+  const name=vv('s_name'), url=vv('s_url'), logo=vv('s_logo'); if(!name||!url) return;
+  if(editingOrig!==null){ await patch('/api/stations', {orig:editingOrig, name, url, logo}); }
+  else { await fetch('/api/stations', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,url,logo})}); }
+  clearForm(); loadStations(); setTimeout(refresh, 300);
+}
+function stEdit(i){ const s=ADMIN[i]; document.getElementById('s_name').value=s.name;
+  document.getElementById('s_url').value=s.url; document.getElementById('s_logo').value=s.logo||'';
+  editingOrig=s.name; document.getElementById('savebtn').textContent='Opslaan'; }
+function clearForm(){ ['s_name','s_url','s_logo'].forEach(id=>document.getElementById(id).value='');
+  editingOrig=null; document.getElementById('savebtn').textContent='Toevoegen'; }
+async function stDel(i){ if(!confirm('Verwijder "'+ADMIN[i].name+'"?')) return;
+  await fetch('/api/stations/'+encodeURIComponent(ADMIN[i].name), {method:'DELETE'}); loadStations(); setTimeout(refresh,300); }
+async function stDefault(i){ await fetch('/api/stations/'+encodeURIComponent(ADMIN[i].name)+'/default', {method:'POST'}); loadStations(); setTimeout(refresh,300); }
 function toggleMasterMute(){ patch('/api/zones', {mute: !(ST && ST.master_mute)}).then(()=>setTimeout(refresh,250)); }
 function mv(v){ dragging = true; }
 function mvCommit(v){ dragging = false; patch('/api/zones', {vol: +v}).then(()=>setTimeout(refresh,250)); }
