@@ -1,0 +1,10 @@
+// Ambiance AmpliPi controller + 6 zones. CUTOVER: goes to things/ambiance.things.
+// Port 8080 = free once amplipi.service is stopped+disabled at cutover.
+Bridge ambianceamplipi:controller:main "Ambiance AmpliPi" [ hostname="192.168.1.138", port=8080, refreshInterval=3 ] {
+    Thing zone z0 "Office"    [ id=0 ]
+    Thing zone z1 "Wc up"     [ id=1 ]
+    Thing zone z2 "Main area" [ id=2 ]
+    Thing zone z3 "Kitchen"   [ id=3 ]
+    Thing zone z4 "Wc down"   [ id=4 ]
+    Thing zone z5 "Showroom"  [ id=5 ]
+}

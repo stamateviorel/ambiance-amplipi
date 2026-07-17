@@ -1,0 +1,38 @@
+// AmpliPi zone items — AMBIANCE BINDING version. Same names so the widget +
+// music_motion_control.js (music-follows-you via per-zone Power) keep working, now bound to
+// real ambianceamplipi zone channels. CUTOVER: replaces items/amplipi.items.
+
+Group g_amplipi "AmpliPi zones" <speaker> (g_music)
+
+// Office (zone 0)
+Switch   AmpliPi_Office_Power    "Office aan/uit"            (g_amplipi) { channel="ambianceamplipi:zone:main:z0:power" }
+Dimmer   AmpliPi_Office_Volume   "Office volume [%d %%]"      (g_amplipi) { channel="ambianceamplipi:zone:main:z0:volume" }
+Switch   AmpliPi_Office_Mute     "Office dempen"             (g_amplipi) { channel="ambianceamplipi:zone:main:z0:mute" }
+
+// Wc up (zone 1)
+Switch   AmpliPi_WcUp_Power      "Wc boven aan/uit"          (g_amplipi) { channel="ambianceamplipi:zone:main:z1:power" }
+Dimmer   AmpliPi_WcUp_Volume     "Wc boven volume [%d %%]"    (g_amplipi) { channel="ambianceamplipi:zone:main:z1:volume" }
+Switch   AmpliPi_WcUp_Mute       "Wc boven dempen"           (g_amplipi) { channel="ambianceamplipi:zone:main:z1:mute" }
+
+// Hoofdruimte (zone 2)
+Switch   AmpliPi_MainArea_Power  "Hoofdruimte aan/uit"       (g_amplipi) { channel="ambianceamplipi:zone:main:z2:power" }
+Dimmer   AmpliPi_MainArea_Volume  "Hoofdruimte volume [%d %%]" (g_amplipi) { channel="ambianceamplipi:zone:main:z2:volume" }
+Switch   AmpliPi_MainArea_Mute    "Hoofdruimte dempen"       (g_amplipi) { channel="ambianceamplipi:zone:main:z2:mute" }
+
+// Keuken (zone 3)
+Switch   AmpliPi_Kitchen_Power   "Keuken aan/uit"            (g_amplipi) { channel="ambianceamplipi:zone:main:z3:power" }
+Dimmer   AmpliPi_Kitchen_Volume  "Keuken volume [%d %%]"      (g_amplipi) { channel="ambianceamplipi:zone:main:z3:volume" }
+Switch   AmpliPi_Kitchen_Mute    "Keuken dempen"             (g_amplipi) { channel="ambianceamplipi:zone:main:z3:mute" }
+
+// Wc beneden (zone 4)
+Switch   AmpliPi_WcDown_Power    "Wc beneden aan/uit"        (g_amplipi) { channel="ambianceamplipi:zone:main:z4:power" }
+Dimmer   AmpliPi_WcDown_Volume   "Wc beneden volume [%d %%]"  (g_amplipi) { channel="ambianceamplipi:zone:main:z4:volume" }
+Switch   AmpliPi_WcDown_Mute     "Wc beneden dempen"         (g_amplipi) { channel="ambianceamplipi:zone:main:z4:mute" }
+
+// Showroom (zone 5)
+Switch   AmpliPi_Showroom_Power  "Showroom aan/uit"          (g_amplipi) { channel="ambianceamplipi:zone:main:z5:power" }
+Dimmer   AmpliPi_Showroom_Volume  "Showroom volume [%d %%]"   (g_amplipi) { channel="ambianceamplipi:zone:main:z5:volume" }
+Switch   AmpliPi_Showroom_Mute    "Showroom dempen"          (g_amplipi) { channel="ambianceamplipi:zone:main:z5:mute" }
+
+// Watchdog alert bridge kept for compatibility (amplipi_watchdog_alerts.js); harmless if unused.
+String   AmpliPi_Watchdog_Alert "AmpliPi waakhond [%s]"    <soundvolume>

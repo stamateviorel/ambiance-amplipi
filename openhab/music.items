@@ -1,0 +1,23 @@
+// Music items — AMBIANCE BINDING version. Same item names as before so the existing
+// SqueezeMultiZoneControl widget + music_motion_control.js keep working, now bound to real
+// ambianceamplipi channels (NO rule bridge). CUTOVER: replaces items/music.items.
+
+Group   g_music "Muziek" (GSS) ["Location"]
+Group   g_music_receiver "Ontvanger" <receiver> (g_music) ["Receiver"]
+Group   g_music_general  "Algemeen"  <receiver> (g_music_receiver) ["Receiver"]
+
+Player  SqueezeGeneralControl     "Algemeen"                  (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:control" }
+Dimmer  SqueezeGeneralVolume      "Volume [%s]"               (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:masterVolume" }
+Switch  SqueezeGeneralMute        "Dempen"                    (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:masterMute" }
+Switch  SqueezeGeneralPower       "Aan/uit"                   (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:power" }
+
+String  SqueezeGeneralTitle       ""                  <none>  (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:track" }
+String  SqueezeGeneralArtist      ""                  <none>  (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:artist" }
+String  SqueezeGeneralRemoteTitle "Externe titel"             (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:title" }
+Image   SqueezeGeneralCover       "Albumhoes [%s]"            (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:cover" }
+
+// Station picker — the binding supplies command options (dynamic, from the editable station list)
+String  SqueezeGeneralPlayFavorite "Favorieten afspelen [%s]" (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:station" }
+
+// Burglar siren — driven by alarmpanel_output_hooks.js from AlarmPanel_Siren_Active
+Switch  Ambiance_Siren            "Sirene"                    (g_music_general)              { channel="ambianceamplipi:controller:main:siren" }

@@ -1,0 +1,20 @@
+[Unit]
+Description=ambiance-amplipi :: display (ILI9341 front screen)
+Documentation=file:/etc/openhab/misc/audio/APPLIANCE_RADIO_PLAN.md
+After=network.target ambiance.service
+Wants=ambiance.service
+# The AmpliPi display and this one both own the SPI panel -> mutually exclusive. Starting
+# this at cutover stops amplipi-display; do NOT start it during Phase 0.
+Conflicts=amplipi-display.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/ambiance-amplipi
+EnvironmentFile=-/home/pi/ambiance-amplipi/config/ambiance.env
+Environment=AMBIANCE_API=http://127.0.0.1:8080
+ExecStart=/home/pi/amplipi-dev/venv/bin/python -m ambiance.display.screen
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

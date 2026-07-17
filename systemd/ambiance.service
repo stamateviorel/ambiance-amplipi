@@ -1,0 +1,18 @@
+[Unit]
+Description=ambiance-amplipi :: service (radio + announce + alarm over 6 zones)
+Documentation=file:/etc/openhab/misc/audio/APPLIANCE_RADIO_PLAN.md
+After=network.target ambiance-mpd.service
+Wants=ambiance-mpd.service
+# AMBIANCE_HW=rpi makes rt.Rpi() reset the preamps on init — the cutover order stops
+# amplipi.service BEFORE this starts. Default (Phase-0) mode is Mock/dry and safe.
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/ambiance-amplipi
+EnvironmentFile=-/home/pi/ambiance-amplipi/config/ambiance.env
+ExecStart=/home/pi/amplipi-dev/venv/bin/python -m ambiance.asgi
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

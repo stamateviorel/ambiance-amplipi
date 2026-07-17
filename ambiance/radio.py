@@ -1,0 +1,167 @@
+"""Internet radio via mpd, controlled with the `mpc` subprocess (python-mpd2 is not
+installed on the Pi). Stations are a declarative list with atomic CRUD (temp+rename, one
+.bak — never a half-written file); the FIRST entry is the default/boot station. Now-playing
+comes from the stream's ICY StreamTitle ("Artist - Track" when the station broadcasts it).
+"""
+import os
+import shutil
+import subprocess
+import tempfile
+import threading
+
+
+class Radio:
+    def __init__(self, stations_file, mpd_host="127.0.0.1", mpd_port=6600):
+        self.file = stations_file
+        self.mpc_base = ["mpc", "-h", mpd_host, "-p", str(mpd_port)]
+        self.lock = threading.Lock()
+        self.stations = self._load()
+
+    # ---- mpc ----
+    def _mpc(self, *args):
+        try:
+            return subprocess.check_output(self.mpc_base + list(args),
+                                           stderr=subprocess.DEVNULL, timeout=8).decode()
+        except Exception:
+            return ""
+
+    # ---- stations file (atomic write, one .bak) ----
+    def _load(self):
+        out = []
+        try:
+            for line in open(self.file):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                name, _, url = line.partition("|")
+                if url:
+                    out.append({"name": name.strip(), "url": url.strip()})
+        except Exception:
+            pass
+        return out
+
+    def _save(self):
+        header = ("# ambiance-amplipi station list (edited via openHAB / the API).\n"
+                  "# Format:  Display Name | Stream URL   — the FIRST entry is the default (boot) station.\n\n")
+        body = "".join("%s|%s\n" % (s["name"], s["url"]) for s in self.stations)
+        d = os.path.dirname(self.file) or "."
+        try:
+            fd, tmp = tempfile.mkstemp(dir=d, prefix=".stations-", suffix=".tmp")
+            with os.fdopen(fd, "w") as f:
+                f.write(header + body)
+            if os.path.exists(self.file):
+                try:
+                    shutil.copy2(self.file, self.file + ".bak")
+                except OSError:
+                    pass
+            os.replace(tmp, self.file)
+            try:
+                os.chmod(self.file, 0o644)
+            except OSError:
+                pass
+        except Exception:
+            pass
+
+    @staticmethod
+    def _clean(s):
+        return str(s or "").replace("|", " ").replace("\n", " ").replace("\r", " ").strip()
+
+    # CRUD -> (ok, error)
+    def add_station(self, name, url):
+        name, url = self._clean(name), self._clean(url)
+        if not name or not url:
+            return False, "naam en URL vereist"
+        with self.lock:
+            if any(s["name"] == name for s in self.stations):
+                return False, "naam bestaat al"
+            self.stations.append({"name": name, "url": url})
+            self._save()
+        return True, None
+
+    def update_station(self, orig, name, url):
+        orig, name, url = self._clean(orig), self._clean(name), self._clean(url)
+        if not name or not url:
+            return False, "naam en URL vereist"
+        with self.lock:
+            i = next((k for k, s in enumerate(self.stations) if s["name"] == orig), -1)
+            if i < 0:
+                return False, "zender niet gevonden"
+            if name != orig and any(s["name"] == name for s in self.stations):
+                return False, "naam bestaat al"
+            self.stations[i] = {"name": name, "url": url}
+            self._save()
+        return True, None
+
+    def delete_station(self, name):
+        name = self._clean(name)
+        with self.lock:
+            i = next((k for k, s in enumerate(self.stations) if s["name"] == name), -1)
+            if i < 0:
+                return False, "zender niet gevonden"
+            del self.stations[i]
+            self._save()
+        return True, None
+
+    def set_default(self, name):
+        name = self._clean(name)
+        with self.lock:
+            i = next((k for k, s in enumerate(self.stations) if s["name"] == name), -1)
+            if i < 0:
+                return False, "zender niet gevonden"
+            self.stations.insert(0, self.stations.pop(i))
+            self._save()
+        return True, None
+
+    # ---- playback ----
+    def current_station(self):
+        url = self._mpc("-f", "%file%", "current").strip()
+        for s in self.stations:
+            if s["url"] == url:
+                return s["name"]
+        return None
+
+    def now_playing(self):
+        raw = self._mpc("-f", "%title%", "current").strip()   # ICY StreamTitle
+        artist, track = "", raw
+        for sep in (" - ", " – "):
+            if sep in raw:
+                artist, track = raw.split(sep, 1)
+                break
+        return {"title": raw, "artist": artist.strip(), "track": track.strip()}
+
+    def is_playing(self):
+        return "[playing]" in self._mpc("status")
+
+    def play_station(self, name):
+        for s in self.stations:
+            if s["name"] == name:
+                self._mpc("clear")
+                self._mpc("add", s["url"])
+                self._mpc("play")
+                return True
+        return False
+
+    def play(self):
+        self._mpc("play")
+
+    def stop(self):
+        self._mpc("stop")
+
+    def cycle(self, delta):
+        names = [s["name"] for s in self.stations]
+        if not names:
+            return
+        cur = self.current_station()
+        i = names.index(cur) if cur in names else 0
+        self.play_station(names[(i + delta) % len(names)])
+
+    def ensure_default(self):
+        # boot-to-radio: empty playlist (cold start) -> play the first station
+        if not self._mpc("playlist").strip() and self.stations:
+            self.play_station(self.stations[0]["name"])
+
+    def state(self):
+        np = self.now_playing()
+        return {"playing": self.is_playing(), "station": self.current_station(),
+                "title": np["title"], "artist": np["artist"], "track": np["track"],
+                "stations": [s["name"] for s in self.stations]}
