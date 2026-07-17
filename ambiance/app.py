@@ -9,11 +9,12 @@ threadpool (never blocking the event loop). Pydantic v1 (Python 3.7 on the Pi).
 """
 import asyncio
 import json
+import os
 import threading
 import time
 
 from fastapi import FastAPI, Request
-from fastapi.responses import Response
+from fastapi.responses import HTMLResponse, Response
 from sse_starlette.sse import EventSourceResponse
 
 from . import models
@@ -63,6 +64,18 @@ class Controller:
 cfg = Config()
 ctl = Controller(cfg)
 app = FastAPI(title="ambiance-amplipi", version="0.1.0")
+
+_WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
+
+
+# ---- web UI (a self-contained control page over the same API) ----
+@app.get("/", response_class=HTMLResponse)
+def index():
+    try:
+        with open(os.path.join(_WEB_DIR, "index.html"), encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    except OSError:
+        return HTMLResponse("<h1>Ambiance AmpliPi</h1><p>Web UI niet gevonden.</p>")
 
 
 # ---- status + events ----
