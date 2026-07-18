@@ -161,7 +161,12 @@ class Radio:
             if sep in raw:
                 artist, track = raw.split(sep, 1)
                 break
-        return {"title": raw, "artist": artist.strip(), "track": track.strip()}
+        artist, track = artist.strip(), track.strip()
+        # `track` is the primary line; `title` (the full StreamTitle) the secondary one.
+        # With no "Artist - Song" split they are identical, so blank the secondary — the
+        # widget shows both cards, and screen/web already show `station` + `title`.
+        title = "" if track == raw else raw
+        return {"title": title, "artist": artist, "track": track}
 
     def is_playing(self):
         return "[playing]" in self._mpc("status")
