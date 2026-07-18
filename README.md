@@ -2,7 +2,7 @@
 
 A small, single-purpose whole-house audio appliance for a Raspberry-Pi + [AmpliPi](https://github.com/micro-nova/AmpliPi) preamp: **internet radio**, **Spotify Connect**, **public-address announcements**, and a **burglar siren**, over up to six amplified zones. It is a heavily stripped fork of AmpliPi that keeps only the hardware layer (`amplipi.rt` → the 6-zone preamp over I²C) and replaces everything else with a tiny radio-first REST service.
 
-It pairs with the [`ambianceamplipi` openHAB binding](https://github.com/openhab/openhab-addons) but is fully usable stand-alone (REST API + a built-in web UI).
+It pairs with the [`ambianceamplipi` openHAB binding](https://github.com/stamateviorel/openhab-addons/tree/ambianceamplipi/bundles/org.openhab.binding.ambianceamplipi) but is fully usable stand-alone (REST API + a built-in web UI).
 
 ## Why
 
