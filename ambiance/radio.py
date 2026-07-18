@@ -19,6 +19,10 @@ class Radio:
         # Intended play-state: the health monitor self-heals only a DROPPED stream we meant
         # to be playing — never an intentional stop (e.g. music-follows-you going away).
         self.desired_playing = False
+        # Name of the station we last put on. Authoritative for "what's playing" because
+        # mpd expands .pls/.m3u stations to an inner CDN URL that no longer matches the
+        # configured station URL — so reverse-matching the URL alone is unreliable.
+        self.current_name = None
 
     # ---- mpc ----
     def _mpc(self, *args):
@@ -127,22 +131,31 @@ class Radio:
         return True, None
 
     # ---- playback ----
-    def current_station(self):
+    def _current(self):
+        """The station dict currently on: the name we last played (survives .pls/.m3u
+        URL expansion), else a reverse URL match for a name we don't have stored yet."""
+        if self.current_name:
+            s = next((s for s in self.stations if s["name"] == self.current_name), None)
+            if s:
+                return s
         url = self._mpc("-f", "%file%", "current").strip()
-        for s in self.stations:
-            if s["url"] == url:
-                return s["name"]
-        return None
+        return next((s for s in self.stations if s["url"] == url), None)
+
+    def current_station(self):
+        s = self._current()
+        return s["name"] if s else None
 
     def current_station_logo(self):
-        url = self._mpc("-f", "%file%", "current").strip()
-        for s in self.stations:
-            if s["url"] == url:
-                return s.get("logo")
-        return None
+        s = self._current()
+        return s.get("logo") if s else None
 
     def now_playing(self):
         raw = self._mpc("-f", "%title%", "current").strip()   # ICY StreamTitle
+        if not raw:
+            # No ICY metadata (talk/news stream, or between tracks): fall back to the
+            # station name so the now-playing is never blank. Matches the pre-migration
+            # behaviour where the UI always showed at least which station is on.
+            raw = self.current_station() or ""
         artist, track = "", raw
         for sep in (" - ", " – "):
             if sep in raw:
@@ -160,6 +173,7 @@ class Radio:
                 self._mpc("add", s["url"])
                 self._mpc("play")
                 self.desired_playing = True
+                self.current_name = name
                 return True
         return False
 
@@ -207,7 +221,9 @@ class Radio:
             self.play_station(self.stations[0]["name"])
 
     def state(self):
-        np = self.now_playing()
-        return {"playing": self.is_playing(), "station": self.current_station(),
+        playing = self.is_playing()
+        # Blank the now-playing when stopped so the UI shows a name only while on air.
+        np = self.now_playing() if playing else {"title": "", "artist": "", "track": ""}
+        return {"playing": playing, "station": self.current_station(),
                 "title": np["title"], "artist": np["artist"], "track": np["track"],
                 "stations": [s["name"] for s in self.stations]}
