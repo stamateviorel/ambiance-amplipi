@@ -25,6 +25,7 @@ from .cover import Cover
 from .health import HealthMonitor
 from .radio import Radio
 from .sleep import Sleep
+from .source import Source
 from .hardware.zones import Zones
 
 
@@ -38,6 +39,7 @@ class Controller:
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
                                    is_busy=lambda: self.siren.active)
         self.cover = Cover()
+        self.source = Source(ctl=cfg.vol_ctl, dry=cfg.dry)   # source (Ch0) volume, independent of zones
         self.groups = getattr(cfg, "groups", [])
         self.sleep = Sleep(on_fire=self.radio.stop)
         self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
@@ -46,7 +48,7 @@ class Controller:
         return {
             "zones": self.zones.snapshot(),
             "radio": self.radio.state(),
-            "master_vol": self.zones.master_vol(),
+            "master_vol": self.source.vol(),        # source level (Ch0), NOT an average of zones
             "master_mute": self.zones.master_mute(),
             "siren": self.siren.active,
             "health": self.monitor.state,
@@ -206,7 +208,7 @@ def zone_update(zid: int, u: models.ZoneUpdate):
 @app.patch("/api/zones", response_model=models.Status)
 def zones_master(u: models.MasterUpdate):
     if u.vol is not None:
-        ctl.zones.set_master_vol(u.vol)
+        ctl.source.set_vol(u.vol)          # master = the source (Ch0) level; zones keep their own volumes
     if u.mute is not None:
         ctl.zones.set_master_mute(u.mute)
     return ctl.status()

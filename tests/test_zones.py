@@ -39,14 +39,19 @@ class TestZones(unittest.TestCase):
         self.z.set_power(0, False)
         self.assertTrue(self.z._eff()[0])
 
-    def test_master_vol_and_mute(self):
-        self.z.set_master_vol(60)
-        self.assertEqual(self.z.master_vol(), 60)
-        self.assertTrue(all(s["vol"] == 60 for s in self.z.snapshot()))
+    def test_master_mute(self):
         self.z.set_master_mute(True)
         self.assertTrue(self.z.master_mute())
         self.z.set_master_mute(False)
         self.assertFalse(self.z.master_mute())
+
+    def test_zone_volumes_stay_independent(self):
+        # the master (source) volume no longer flattens zones — each keeps its own level
+        self.z.set_vol(0, 20)
+        self.z.set_vol(1, 80)
+        snap = {s["id"]: s["vol"] for s in self.z.snapshot()}
+        self.assertEqual(snap[0], 20)
+        self.assertEqual(snap[1], 80)
 
     def test_siren_snapshot_restore(self):
         self.z.set_vol(0, 30)

@@ -61,10 +61,6 @@ class Zones:
             self.power[z] = bool(on)
             self.rt.update_zone_mutes(0, self._eff())
 
-    def set_master_vol(self, pct):
-        for z in range(self.n):
-            self.set_vol(z, pct)
-
     def set_master_mute(self, on):
         for z in range(self.n):
             self.set_mute(z, on)
@@ -90,9 +86,6 @@ class Zones:
     @property
     def siren_active(self):
         return self._saved is not None
-
-    def master_vol(self):
-        return round(sum(self.vol) / float(self.n)) if self.n else 0
 
     def master_mute(self):
         return self.n > 0 and all(self.muted)
