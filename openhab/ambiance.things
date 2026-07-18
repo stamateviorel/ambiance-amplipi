@@ -7,6 +7,9 @@ Bridge ambianceamplipi:controller:main "Ambiance AmpliPi" [ hostname="192.168.1.
     Thing zone z3 "Keuken"   [ id=3 ]
     Thing zone z4 "Wc beneden"   [ id=4 ]
     Thing zone z5 "Showroom"  [ id=5 ]
+    // zone groups (defined on the controller — groups.conf / web UI; keyed by name)
+    Thing group boven   "Boven"   [ name="Boven" ]
+    Thing group beneden "Beneden" [ name="Beneden" ]
 }
 
 // things rebuilt 2026-07-18: source channel added (bundle must be settled BEFORE this file reloads)

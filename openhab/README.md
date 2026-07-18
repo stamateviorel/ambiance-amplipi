@@ -5,8 +5,8 @@ The exact files this site runs — adapt names/IPs to yours:
 | File | What |
 |---|---|
 | `ambiance.things` | `controller` bridge + six `zone` things for the `ambianceamplipi` binding |
-| `music.items` | controller items: transport, source (radio/Spotify), volume, now-playing, cover, siren, health |
-| `amplipi.items` | per-zone power/volume/mute items |
+| `music.items` | controller items: transport, source (radio/Spotify), volume, now-playing, cover, siren, health, sleep timer, Pi diagnostics |
+| `amplipi.items` | per-zone power/volume/mute items + group items (Boven/Beneden) |
 | `announcement.js` | text item -> `Voice.say(...)` via the binding's PA audio sink (TTS announcements) |
 | `ambiance_health_notify.js` | push notification when the controller's audio health degrades/recovers |
 | `alarmpanel_output_hooks.js` | burglar-siren integration: engage + verify + daily silent self-test |

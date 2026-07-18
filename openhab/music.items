@@ -31,3 +31,10 @@ Switch  Ambiance_Siren            "Sirene"                    (g_music_general) 
 // amplipi-radio-watchdog push bridge, now driven natively by the binding).
 Switch  Ambiance_Health_OK        "Audio gezond [%s]"         (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:healthOk" }
 String  Ambiance_Health           "Audio status [%s]"         (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:health" }
+
+// Sleep timer: minutes until the active source is silenced (command N to arm, 0 to cancel)
+Number  Ambiance_Sleep            "Slaaptimer [%d min]"       (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:sleepTimer" }
+
+// Pi host diagnostics (slow poll — every 60 s)
+Number:Temperature Ambiance_Pi_Temperature "Ambiance Pi temperatuur [%.1f °C]" <temperature> (g_music_general) ["Measurement","Temperature"] { channel="ambianceamplipi:controller:main:temperature" }
+Number  Ambiance_Pi_Disk          "Ambiance Pi schijf [%d %%]" (g_music_general) ["Status"]  { channel="ambianceamplipi:controller:main:diskPercent" }

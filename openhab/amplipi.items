@@ -33,3 +33,13 @@ Switch   AmpliPi_WcDown_Mute     "Wc beneden dempen"         (g_amplipi) { chann
 Switch   AmpliPi_Showroom_Power  "Showroom aan/uit"          (g_amplipi) { channel="ambianceamplipi:zone:main:z5:power" }
 Dimmer   AmpliPi_Showroom_Volume  "Showroom volume [%d %%]"   (g_amplipi) { channel="ambianceamplipi:zone:main:z5:volume" }
 Switch   AmpliPi_Showroom_Mute    "Showroom dempen"          (g_amplipi) { channel="ambianceamplipi:zone:main:z5:mute" }
+
+// Zone groups (controller-defined; avg volume, all-mute, all-power over the members).
+// NOT in g_amplipi — the widget's dynamic zone rows iterate that group's Dimmers.
+Group g_ambiance_groups "Ambiance groepen" <speaker> (g_music)
+Switch   Ambiance_Boven_Power    "Boven aan/uit"             (g_ambiance_groups) { channel="ambianceamplipi:group:main:boven:power" }
+Dimmer   Ambiance_Boven_Volume   "Boven volume [%d %%]"       (g_ambiance_groups) { channel="ambianceamplipi:group:main:boven:volume" }
+Switch   Ambiance_Boven_Mute     "Boven dempen"              (g_ambiance_groups) { channel="ambianceamplipi:group:main:boven:mute" }
+Switch   Ambiance_Beneden_Power  "Beneden aan/uit"           (g_ambiance_groups) { channel="ambianceamplipi:group:main:beneden:power" }
+Dimmer   Ambiance_Beneden_Volume "Beneden volume [%d %%]"     (g_ambiance_groups) { channel="ambianceamplipi:group:main:beneden:volume" }
+Switch   Ambiance_Beneden_Mute   "Beneden dempen"            (g_ambiance_groups) { channel="ambianceamplipi:group:main:beneden:mute" }
