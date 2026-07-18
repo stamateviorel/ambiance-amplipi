@@ -98,6 +98,13 @@ class GroupUpdate(BaseModel):
     vol: Optional[int] = None
     mute: Optional[bool] = None
     power: Optional[bool] = None
+    new_name: Optional[str] = None       # rename the group (persisted to groups.conf)
+    zones: Optional[List[int]] = None    # replace the member zone ids (persisted)
+
+
+class GroupEdit(BaseModel):
+    name: str
+    zones: List[int] = []
 
 
 class SleepUpdate(BaseModel):

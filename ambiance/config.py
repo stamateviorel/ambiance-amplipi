@@ -45,17 +45,13 @@ def _load_groups(path):
     return groups
 
 
-def save_zones(path, zones):
-    """Atomically rewrite zones.conf (used by the web UI's zone rename)."""
-    header = ("# ambiance-amplipi — zones.conf   (id | name | default_volume_percent)\n"
-              "# Editable from the web UI (tap a zone name); ids match the AmpliPi preamp channels.\n\n")
-    body = "".join("%d|%s|%d\n" % (z["id"], z["name"], int(z.get("default_pct", 50)))
-                   for z in zones)
+def _write_atomic(path, content):
+    """tmp + rename with one .bak — never a half-written config file."""
     d = os.path.dirname(path) or "."
     try:
-        fd, tmp = tempfile.mkstemp(dir=d, prefix=".zones-", suffix=".tmp")
+        fd, tmp = tempfile.mkstemp(dir=d, prefix=".cfg-", suffix=".tmp")
         with os.fdopen(fd, "w") as f:
-            f.write(header + body)
+            f.write(content)
         if os.path.exists(path):
             try:
                 shutil.copy2(path, path + ".bak")
@@ -71,6 +67,23 @@ def save_zones(path, zones):
         return False
 
 
+def save_zones(path, zones):
+    """Atomically rewrite zones.conf (used by the web UI's zone rename)."""
+    header = ("# ambiance-amplipi — zones.conf   (id | name | default_volume_percent)\n"
+              "# Editable from the web UI (tap a zone name); ids match the AmpliPi preamp channels.\n\n")
+    body = "".join("%d|%s|%d\n" % (z["id"], z["name"], int(z.get("default_pct", 50)))
+                   for z in zones)
+    return _write_atomic(path, header + body)
+
+
+def save_groups(path, groups):
+    """Atomically rewrite groups.conf (used by the web UI's group editor)."""
+    header = ("# ambiance-amplipi — groups.conf   (Group Name | comma-separated zone ids)\n"
+              "# Editable from the web UI (Groepen: tap to edit, + to add); ids reference zones.conf.\n\n")
+    body = "".join("%s|%s\n" % (g["name"], ",".join(str(i) for i in g["zones"])) for g in groups)
+    return _write_atomic(path, header + body)
+
+
 # Generic fallback, used ONLY when zones.conf is missing/empty. Real installs name their
 # zones in config/zones.conf (this repo ships an example) — no site data lives in code.
 _DEFAULT_ZONES = [{"id": i, "name": "Zone %d" % (i + 1), "default_pct": 50} for i in range(6)]
@@ -84,7 +97,7 @@ class Config:
         self.groups_file = os.environ.get("AMBIANCE_GROUPS", base + "/config/groups.conf")
         self.alarm_wav = os.environ.get("AMBIANCE_ALARM", base + "/assets/alarm.wav")
         self.zones = _load_zones(self.zones_file) or _DEFAULT_ZONES
-        self.groups = _load_groups(self.groups_file)
+        # groups are loaded/owned by ambiance.groups.Groups (editable at runtime)
         self.hw = os.environ.get("AMBIANCE_HW", "mock")               # mock | rpi (rpi resets preamps)
         self.dry = os.environ.get("AMBIANCE_DRY", "1") == "1"          # fail-safe: dry unless =0
         self.announce_dev = os.environ.get("AMBIANCE_ANNOUNCE_DEV", "ch0boost")

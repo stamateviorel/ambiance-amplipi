@@ -22,6 +22,7 @@ from .announce import Announcer
 from .alarm import Siren
 from .config import Config, save_zones
 from .cover import Cover
+from .groups import Groups
 from .health import HealthMonitor
 from .radio import Radio
 from .sleep import Sleep
@@ -59,7 +60,7 @@ class Controller:
         if getattr(cfg, "spotify", True):
             services.append("ambiance-spotify")
         self.system = System(services=services, dry=cfg.dry)  # stats + power for the settings page
-        self.groups = getattr(cfg, "groups", [])
+        self.groups = Groups(cfg.groups_file, lambda: self.zones.n)  # editable, persisted
         self.sleep = Sleep(on_fire=lambda: self.sources.pause_all())  # silence whatever plays
         self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
 
@@ -80,7 +81,7 @@ class Controller:
     def _group_states(self):
         snap = {z["id"]: z for z in self.zones.snapshot()}
         out = []
-        for g in self.groups:
+        for g in self.groups.entries:
             zs = [snap[i] for i in g["zones"] if i in snap]
             if not zs:
                 continue
@@ -91,7 +92,7 @@ class Controller:
         return out
 
     def apply_group(self, name, vol=None, mute=None, power=None):
-        g = next((g for g in self.groups if g["name"] == name), None)
+        g = self.groups.get(name)
         if not g:
             return False
         for i in g["zones"]:
@@ -345,10 +346,28 @@ def zones_master(u: models.MasterUpdate):
     return ctl.status()
 
 
+@app.post("/api/groups", response_model=models.ApiResult)
+def group_create(g: models.GroupEdit):
+    ok, err = ctl.groups.create(g.name, g.zones)
+    return {"ok": ok, "error": err}
+
+
 @app.patch("/api/groups/{name}", response_model=models.Status)
 def group_update(name: str, u: models.GroupUpdate):
+    if u.new_name is not None or u.zones is not None:   # edit (persisted) — then control below
+        ok, err = ctl.groups.update(name, u.new_name, u.zones)
+        if not ok:
+            raise HTTPException(status_code=404 if err == "groep niet gevonden" else 400, detail=err)
+        if u.new_name is not None:
+            name = ctl.groups._clean(u.new_name)        # control targets the new name
     ctl.apply_group(name, u.vol, u.mute, u.power)
     return ctl.status()
+
+
+@app.delete("/api/groups/{name}", response_model=models.ApiResult)
+def group_delete(name: str):
+    ok, err = ctl.groups.delete(name)
+    return {"ok": ok, "error": err}
 
 
 @app.post("/api/sleep", response_model=models.Status)

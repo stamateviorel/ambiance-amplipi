@@ -85,7 +85,10 @@
   </div>
 
   <div class="card" id="groupscard" style="display:none">
-    <div class="lbl" style="margin-top:0">Groepen</div>
+    <div class="row" style="justify-content:space-between">
+      <span class="lbl" style="margin:0">Groepen</span>
+      <button class="pill" title="Nieuwe groep" onclick="gAdd()">＋</button>
+    </div>
     <div id="groups"></div>
   </div>
 
@@ -227,21 +230,49 @@ function renderZones(zones){
 }
 function renderGroups(groups){
   const card = document.getElementById('groupscard');
-  if (!groups || !groups.length){ card.style.display='none'; return; }
+  // the card shows whenever grouping makes sense, so a group can be CREATED from scratch
+  const zones = (ST && ST.zones) || [];
+  if (!(groups && groups.length) && zones.length < 2){ card.style.display='none'; return; }
   card.style.display='block';
-  document.getElementById('groups').innerHTML = groups.map((g,i)=>{
+  document.getElementById('groups').innerHTML = (groups||[]).map((g,i)=>{
     const silent = g.mute || !g.power;
     return `<div class="zone">
-      <div class="zname" style="opacity:${silent?.5:1}">${esc(g.name)}</div>
+      <div class="zname" style="opacity:${silent?.5:1}; cursor:pointer" title="Tik om te bewerken"
+           onclick="gEdit(${i})">${esc(g.name)} <span style="opacity:.35;font-size:12px">✎</span></div>
       <div class="zctl">
         <span class="pill ${g.power?'on':''}" onclick="gset(${i},{power:${!g.power}})">${g.power?'Aan':'Uit'}</span>
         <span class="pill ${g.mute?'muted':''}" onclick="gset(${i},{mute:${!g.mute}})">${g.mute?'Gedempt':'Dempen'}</span>
+        <span class="pill muted" title="Verwijderen" onclick="gDel(${i})">🗑</span>
       </div>
       <input class="zvol" type="range" min="0" max="100" value="${g.vol}" oninput="gvol(${i},this.value)">
     </div>`; }).join('');
 }
 function gset(i, body){ const g=ST&&ST.groups[i]; if(g) patch('/api/groups/'+encodeURIComponent(g.name), body).then(()=>setTimeout(refresh,250)); }
 function gvol(i, v){ const g=ST&&ST.groups[i]; if(g) patch('/api/groups/'+encodeURIComponent(g.name), {vol:+v}); }
+function zoneLegend(){ return ((ST&&ST.zones)||[]).map(z=>z.id+'='+z.name).join('  '); }
+function askZones(cur){
+  const raw = prompt('Zones (nummers, komma-gescheiden)\n'+zoneLegend(), cur);
+  if (raw==null) return null;
+  const ids = raw.split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
+  return ids.length ? ids : null;
+}
+function gAdd(){
+  const name = prompt('Naam van de nieuwe groep:',''); if(!name||!name.trim()) return;
+  const zones = askZones(''); if(!zones) return;
+  fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:name.trim(),zones})}).then(()=>setTimeout(refresh,300));
+}
+function gEdit(i){
+  const g=ST&&ST.groups[i]; if(!g) return;
+  const name = prompt('Naam van de groep:', g.name); if(name==null||!name.trim()) return;
+  const zones = askZones(g.zones.join(',')); if(!zones) return;
+  patch('/api/groups/'+encodeURIComponent(g.name), {new_name:name.trim(), zones})
+    .then(()=>setTimeout(refresh,300));
+}
+function gDel(i){
+  const g=ST&&ST.groups[i]; if(!g||!confirm('Verwijder groep "'+g.name+'"?')) return;
+  fetch('/api/groups/'+encodeURIComponent(g.name),{method:'DELETE'}).then(()=>setTimeout(refresh,300));
+}
 function setSleep(min){ post('/api/sleep', {minutes:min}); }
 function apply(d){
   ST = d;
