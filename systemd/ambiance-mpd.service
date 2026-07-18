@@ -1,6 +1,6 @@
 [Unit]
 Description=ambiance-amplipi :: mpd (radio player -> ch0)
-Documentation=file:/etc/openhab/misc/audio/APPLIANCE_RADIO_PLAN.md
+Documentation=file:/home/openhab/docs/audio/APPLIANCE_RADIO_PLAN.md
 After=network.target
 
 [Service]
