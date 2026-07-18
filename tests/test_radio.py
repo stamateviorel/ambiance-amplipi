@@ -132,5 +132,26 @@ class TestPlayStateHealth(unittest.TestCase):
         self.assertFalse(ok)
 
 
+class TestLastStation(unittest.TestCase):
+    def test_remembers_across_instances(self):
+        d = tempfile.mkdtemp()
+        path = os.path.join(d, "stations.conf")
+        with open(path, "w") as f:
+            f.write("VRT|http://a\nKlara|http://b\n")
+
+        def _clean():
+            for fn in (path, path + ".bak", os.path.join(d, ".last_station")):
+                if os.path.exists(fn):
+                    os.remove(fn)
+            os.rmdir(d)
+        self.addCleanup(_clean)
+
+        r = FakeRadio(path)
+        self.assertIsNone(r.current_name)
+        r.play_station("Klara")
+        self.assertEqual(r.current_name, "Klara")
+        self.assertEqual(FakeRadio(path).current_name, "Klara")   # persisted -> reloaded fresh
+
+
 if __name__ == "__main__":
     unittest.main()

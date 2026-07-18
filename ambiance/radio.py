@@ -22,7 +22,23 @@ class Radio:
         # Name of the station we last put on. Authoritative for "what's playing" because
         # mpd expands .pls/.m3u stations to an inner CDN URL that no longer matches the
         # configured station URL — so reverse-matching the URL alone is unreliable.
-        self.current_name = None
+        # Persisted next to the station list so a stop / service restart / reboot resumes it.
+        self.state_file = os.path.join(os.path.dirname(os.path.abspath(stations_file)), ".last_station")
+        self.current_name = self._load_last()
+
+    def _load_last(self):
+        try:
+            with open(self.state_file) as fh:
+                return fh.read().strip() or None
+        except OSError:
+            return None
+
+    def _save_last(self):
+        try:
+            with open(self.state_file, "w") as fh:
+                fh.write(self.current_name or "")
+        except OSError:
+            pass
 
     # ---- mpc ----
     def _mpc(self, *args):
@@ -176,12 +192,18 @@ class Radio:
                 self._mpc("play")
                 self.desired_playing = True
                 self.current_name = name
+                self._save_last()
                 return True
         return False
 
     def play(self):
         self.desired_playing = True
-        self._mpc("play")
+        if not self._mpc("playlist").strip() and self.current_name:
+            # empty playlist (nothing loaded, e.g. after a service restart) -> restore
+            # the last station instead of doing nothing
+            self.play_station(self.current_name)
+        else:
+            self._mpc("play")
 
     def stop(self):
         self.desired_playing = False
@@ -218,9 +240,10 @@ class Radio:
         self.play_station(names[(i + delta) % len(names)])
 
     def ensure_default(self):
-        # boot-to-radio: empty playlist (cold start) -> play the first station
+        # boot-to-radio: empty playlist (cold start) -> resume the last station, else the first
         if not self._mpc("playlist").strip() and self.stations:
-            self.play_station(self.stations[0]["name"])
+            names = [s["name"] for s in self.stations]
+            self.play_station(self.current_name if self.current_name in names else names[0])
 
     def state(self):
         playing = self.is_playing()
