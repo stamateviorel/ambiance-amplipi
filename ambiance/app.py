@@ -250,9 +250,10 @@ def cover():
     if not r.is_playing():
         return Response(status_code=204)   # nothing playing -> no cover (widget shows its placeholder)
     np = r.now_playing()
-    # while playing there is ALWAYS a cover: track art -> station logo -> a tile (station|title|"Radio")
-    tile = r.current_station() or np["title"] or "Radio"
-    data = ctl.cover.bytes_for(np["title"], r.current_station_logo(), tile)
+    # while playing there is ALWAYS a cover: song art -> station logo -> a tile (station name)
+    term = ("%s %s" % (np["artist"], np["title"])).strip()   # "Artist Song" for the art search
+    tile = r.current_station() or np["track"] or "Radio"
+    data = ctl.cover.bytes_for(term, r.current_station_logo(), tile)
     if data:
         return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
     return Response(status_code=204)

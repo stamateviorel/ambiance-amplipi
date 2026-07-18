@@ -80,15 +80,21 @@ class TestNowPlaying(unittest.TestCase):
         r.mpc_out = title
         return r
 
-    def test_artist_track_split(self):
-        np = self._radio("Coldplay - Yellow").now_playing()
+    def test_artist_song_on_secondary_station_stays(self):
+        r = self._radio("Coldplay - Yellow")
+        r.current_name = "VRT"                     # a station present in the test file
+        np = r.now_playing()
+        self.assertEqual(np["track"], "VRT")       # station stays on the prominent line
         self.assertEqual(np["artist"], "Coldplay")
-        self.assertEqual(np["track"], "Yellow")
+        self.assertEqual(np["title"], "Yellow")    # song on the secondary line
 
-    def test_station_only(self):
-        np = self._radio("VRT Radio 1").now_playing()
+    def test_no_metadata_shows_only_station(self):
+        r = self._radio("VRT")                     # stream just echoes its own name
+        r.current_name = "VRT"
+        np = r.now_playing()
+        self.assertEqual(np["track"], "VRT")
         self.assertEqual(np["artist"], "")
-        self.assertEqual(np["track"], "VRT Radio 1")
+        self.assertEqual(np["title"], "")          # nothing else playing -> no secondary line
 
 
 class TestPlayStateHealth(unittest.TestCase):

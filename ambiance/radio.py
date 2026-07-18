@@ -150,23 +150,20 @@ class Radio:
         return s.get("logo") if s else None
 
     def now_playing(self):
-        raw = self._mpc("-f", "%title%", "current").strip()   # ICY StreamTitle
-        if not raw:
-            # No ICY metadata (talk/news stream, or between tracks): fall back to the
-            # station name so the now-playing is never blank. Matches the pre-migration
-            # behaviour where the UI always showed at least which station is on.
-            raw = self.current_station() or ""
-        artist, track = "", raw
-        for sep in (" - ", " – "):
-            if sep in raw:
-                artist, track = raw.split(sep, 1)
-                break
-        artist, track = artist.strip(), track.strip()
-        # `track` is the primary line; `title` (the full StreamTitle) the secondary one.
-        # With no "Artist - Song" split they are identical, so blank the secondary — the
-        # widget shows both cards, and screen/web already show `station` + `title`.
-        title = "" if track == raw else raw
-        return {"title": title, "artist": artist, "track": track}
+        # Field mapping to the widget: track -> the bold/prominent line, artist + title ->
+        # the secondary lines. We put the STATION on the prominent line so it stays visible
+        # the whole time, and let a broadcast "Artist - Song" fill the secondary lines when
+        # present (instead of replacing the station name).
+        station = self.current_station() or ""
+        raw = self._mpc("-f", "%title%", "current").strip()   # ICY StreamTitle ("Artist - Song")
+        artist, song = "", ""
+        if raw and raw != station:                            # real metadata, not the stream echoing its own name
+            song = raw
+            for sep in (" - ", " – "):
+                if sep in raw:
+                    artist, song = raw.split(sep, 1)
+                    break
+        return {"title": song.strip(), "artist": artist.strip(), "track": station}
 
     def is_playing(self):
         return "[playing]" in self._mpc("status")
