@@ -53,6 +53,24 @@ class TestZones(unittest.TestCase):
         self.assertEqual(snap[0], 20)
         self.assertEqual(snap[1], 80)
 
+    def test_out_of_range_ids_ignored(self):
+        # zid=-1 must NOT wrap to the last zone (Python negative indexing); zid>=n must not crash
+        self.z.set_vol(-1, 5)
+        self.z.set_vol(9, 5)
+        self.z.set_mute(-1, True)
+        self.z.set_power(9, False)
+        snap = self.z.snapshot()
+        self.assertEqual(snap[5]["vol"], 39)               # untouched by the -1 write
+        self.assertFalse(any(s["mute"] for s in snap))
+        self.assertTrue(all(s["power"] for s in snap))
+
+    def test_master_mute_reports_false_during_siren(self):
+        self.z.set_master_mute(True)
+        self.z.siren(True)
+        self.assertFalse(self.z.master_mute())             # actual output is unmuted
+        self.z.siren(False)
+        self.assertTrue(self.z.master_mute())              # logical state restored
+
     def test_siren_snapshot_restore(self):
         self.z.set_vol(0, 30)
         self.z.set_mute(1, True)

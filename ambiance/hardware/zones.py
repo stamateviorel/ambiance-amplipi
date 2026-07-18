@@ -51,18 +51,24 @@ class Zones:
 
     def set_vol(self, z, pct):
         with self.lock:
+            if not 0 <= z < self.n:                      # a negative id would wrap in Python
+                return
             self.vol[z] = max(0, min(100, int(pct)))
             if not self._siren:                          # siren locks the preamp at full
                 self.rt.update_zone_vol(z, pct_to_db(self.vol[z]))
 
     def set_mute(self, z, on):
         with self.lock:
+            if not 0 <= z < self.n:
+                return
             self.muted[z] = bool(on)
             if not self._siren:                          # can't mute a zone while the siren blasts
                 self.rt.update_zone_mutes(0, self._eff())
 
     def set_power(self, z, on):
         with self.lock:
+            if not 0 <= z < self.n:
+                return
             self.power[z] = bool(on)
             if not self._siren:                          # can't power a zone down while the siren blasts
                 self.rt.update_zone_mutes(0, self._eff())
@@ -99,7 +105,10 @@ class Zones:
         return self._siren
 
     def master_mute(self):
-        return self.n > 0 and all(self.muted)
+        with self.lock:
+            if self._siren:      # actual output is unmuted while the alarm blasts
+                return False
+            return self.n > 0 and all(self.muted)
 
     def snapshot(self):
         with self.lock:

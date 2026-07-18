@@ -13,7 +13,7 @@ import os
 import threading
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from sse_starlette.sse import EventSourceResponse
 
@@ -41,7 +41,9 @@ class Controller:
                            on_loop=self._siren_reassert)             # re-assert full each wav loop
         self.announcer = Announcer(dev=cfg.announce_dev, vol_ctl=cfg.vol_ctl,
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
-                                   is_busy=lambda: self.siren.active)
+                                   is_busy=lambda: self.siren.active,
+                                   boost=self.boost)   # per-announcement volume on the boost channel
+        self._resume_radio = False   # was the radio playing when the siren fired? (resume, not start)
         self.cover = Cover()
         self.source = Source(ctl=cfg.vol_ctl, dry=cfg.dry)   # source (Ch0) volume, independent of zones
         self.system = System(dry=cfg.dry)                    # stats + reboot/shutdown for the settings page
@@ -97,6 +99,8 @@ class Controller:
     def alarm(self, on):
         # safety-critical: independent of mpd — fires even if the radio player is dead
         if on:
+            if not self.siren.active:    # a retried ON must not clobber the remembered state
+                self._resume_radio = self.radio.desired_playing
             self.radio.stop()
             self.boost.set_vol(100)      # alarm channel full up-front
             self.zones.siren(True)       # lock all zones full/unmuted/on (commands can't quiet it)
@@ -104,7 +108,9 @@ class Controller:
         else:
             self.siren.off()
             self.zones.siren(False)      # unlock + restore the logical zone state
-            self.radio.play()            # siren no longer active -> radio resumes
+            if self._resume_radio:       # RESUME the radio only if it was playing pre-alarm
+                self._resume_radio = False
+                self.radio.play()
 
 
 cfg = Config()
@@ -208,6 +214,8 @@ def default_station(name: str):
 # ---- zones ----
 @app.patch("/api/zones/{zid}", response_model=models.Status)
 def zone_update(zid: int, u: models.ZoneUpdate):
+    if not 0 <= zid < ctl.zones.n:      # explicit 404 (a negative id would wrap in Python)
+        raise HTTPException(status_code=404, detail="zone bestaat niet")
     if u.vol is not None:
         ctl.zones.set_vol(zid, u.vol)
     if u.mute is not None:
@@ -241,7 +249,7 @@ def sleep_set(s: models.SleepUpdate):
 # ---- announce + alarm + cover ----
 @app.post("/api/announce", response_model=models.ApiResult)
 def announce(a: models.Announcement):
-    ok = ctl.announcer.say(a.url)
+    ok = ctl.announcer.say(a.url, a.vol)   # optional per-announcement volume (boost channel)
     return {"ok": ok, "error": None if ok else "queue full"}
 
 
@@ -262,8 +270,9 @@ def cover():
     if not r.is_playing():
         return Response(status_code=204)   # nothing playing -> no cover (widget shows its placeholder)
     np = r.now_playing()
-    # while playing there is ALWAYS a cover: song art -> station logo -> a tile (station name)
-    term = ("%s %s" % (np["artist"], np["title"])).strip()   # "Artist Song" for the art search
+    # while playing there is ALWAYS a cover: song art -> station logo -> a tile (station name).
+    # Search only on REAL "Artist + Song" metadata (a lone show/song name gives noisy art hits).
+    term = ("%s %s" % (np["artist"], np["title"])).strip() if (np["artist"] and np["title"]) else ""
     tile = r.current_station() or np["track"] or "Radio"
     data = ctl.cover.bytes_for(term, r.current_station_logo(), tile)
     if data:

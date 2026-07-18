@@ -35,13 +35,14 @@ class Cover:
         self._key = None
         self._data = None
 
-    # tier 1 — real track artwork
-    def _track(self, title):
-        sep = " - " if " - " in title else (" – " if " – " in title else None)
-        if not sep:
+    # tier 1 — real track artwork. `term` is the pre-joined "Artist Song" search string
+    # (the caller only builds it when the stream broadcast real Artist+Song metadata).
+    def _track(self, term):
+        term = " ".join(term.replace(" - ", " ").replace(" – ", " ").split())
+        if not term:
             return None
         try:
-            q = urllib.parse.quote(title.replace(sep, " "))
+            q = urllib.parse.quote(term)
             u = "https://itunes.apple.com/search?term=%s&entity=song&limit=1" % q
             d = json.loads(urllib.request.urlopen(u, timeout=6).read())
             if d.get("resultCount"):
