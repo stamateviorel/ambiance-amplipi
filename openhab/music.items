@@ -19,5 +19,15 @@ Image   SqueezeGeneralCover       "Albumhoes [%s]"            (g_music_general) 
 // Station picker — the binding supplies command options (dynamic, from the editable station list)
 String  SqueezeGeneralPlayFavorite "Favorieten afspelen [%s]" (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:station" }
 
+// Playback source (radio | spotify | future services) — options come from the controller,
+// commanding a name switches to + starts that source (the others yield automatically)
+String  Ambiance_Source           "Bron [%s]"        <player> (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:source" }
+
 // Burglar siren — driven by alarmpanel_output_hooks.js from AlarmPanel_Siren_Active
 Switch  Ambiance_Siren            "Sirene"                    (g_music_general)              { channel="ambianceamplipi:controller:main:siren" }
+
+// Audio-subsystem health — the controller self-heals a dropped stream / wedged preamp and
+// reports the outcome; ambiance_health_notify.js pushes when it degrades (replaces the old
+// amplipi-radio-watchdog push bridge, now driven natively by the binding).
+Switch  Ambiance_Health_OK        "Audio gezond [%s]"         (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:healthOk" }
+String  Ambiance_Health           "Audio status [%s]"         (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:health" }

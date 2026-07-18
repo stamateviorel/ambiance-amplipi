@@ -33,6 +33,3 @@ Switch   AmpliPi_WcDown_Mute     "Wc beneden dempen"         (g_amplipi) { chann
 Switch   AmpliPi_Showroom_Power  "Showroom aan/uit"          (g_amplipi) { channel="ambianceamplipi:zone:main:z5:power" }
 Dimmer   AmpliPi_Showroom_Volume  "Showroom volume [%d %%]"   (g_amplipi) { channel="ambianceamplipi:zone:main:z5:volume" }
 Switch   AmpliPi_Showroom_Mute    "Showroom dempen"          (g_amplipi) { channel="ambianceamplipi:zone:main:z5:mute" }
-
-// Watchdog alert bridge kept for compatibility (amplipi_watchdog_alerts.js); harmless if unused.
-String   AmpliPi_Watchdog_Alert "AmpliPi waakhond [%s]"    <soundvolume>

@@ -1,0 +1,413 @@
+# SqueezeMultiZoneControl — MainUI widget for the Ambiance AmpliPi binding.
+# Adapted from the openHAB community 'SqueezeBox multizone' widget lineage;
+# now-playing lines, transport, source chips (Radio|Spotify), per-zone
+# volume/mute/power popup, station picker. Paste into a new MainUI widget
+# (Developer Tools -> Widgets) and bind via the props/items shown in the
+# repeater's `in` expression (SqueezeGeneral* / AmpliPi_* / Ambiance_Source).
+uid: SqueezeMultiZoneControl_new
+tags: []
+props:
+  parameters:
+  - default: Muziekbediening
+    description: Titel van de widget
+    label: Widgettitel
+    name: widgetTitle
+    required: false
+    type: TEXT
+  parameterGroups: []
+component: f7-card
+config:
+  style:
+    margin: 0 auto
+    max-width: 100%
+slots:
+  default:
+  - component: oh-repeater
+    config:
+      for: sonosInfo
+      fragment: true
+      in: '=[{ playerItemName: ''SqueezeGeneralControl'', titelItemName: ''SqueezeGeneralTitle'', artistItemName: ''SqueezeGeneralArtist'',
+        trackItemName: ''SqueezeGeneralRemoteTitle'', coverArtItemName: ''SqueezeGeneralCover'', zoneVolumeItemName: ''SqueezeGeneralVolume'',
+        zoneMuteItemName: ''SqueezeGeneralMute'', favoriteItemName: ''SqueezeGeneralPlayFavorite'', id: ''general'', volumeInformation:
+        [{ volumeItemName: ''AmpliPi_Office_Volume'', muteItemName: ''AmpliPi_Office_Mute'', powerItemName: ''AmpliPi_Office_Power'',
+        zoneDisplayName: ''Kantoor'' }, { volumeItemName: ''AmpliPi_WcUp_Volume'', muteItemName: ''AmpliPi_WcUp_Mute'', powerItemName:
+        ''AmpliPi_WcUp_Power'', zoneDisplayName: ''Wc boven'' }, { volumeItemName: ''AmpliPi_MainArea_Volume'', muteItemName:
+        ''AmpliPi_MainArea_Mute'', powerItemName: ''AmpliPi_MainArea_Power'', zoneDisplayName: ''Hoofdruimte'' }, { volumeItemName:
+        ''AmpliPi_Kitchen_Volume'', muteItemName: ''AmpliPi_Kitchen_Mute'', powerItemName: ''AmpliPi_Kitchen_Power'', zoneDisplayName:
+        ''Keuken'' }, { volumeItemName: ''AmpliPi_WcDown_Volume'', muteItemName: ''AmpliPi_WcDown_Mute'', powerItemName: ''AmpliPi_WcDown_Power'',
+        zoneDisplayName: ''Wc beneden'' }, { volumeItemName: ''AmpliPi_Showroom_Volume'', muteItemName: ''AmpliPi_Showroom_Mute'',
+        powerItemName: ''AmpliPi_Showroom_Power'', zoneDisplayName: ''Showroom'' }], groupedThingDeleteVars: ''general'' }]'
+      sourceType: array
+    slots:
+      default:
+      - component: oh-masonry
+        config:
+          cols:
+            default: 2.0
+        slots:
+          default:
+          - component: f7-block
+            config:
+              style:
+                padding: 4px 6px 0 6px
+            slots:
+              default:
+              - component: Label
+                config:
+                  style:
+                    font-size: 14px
+                    text-align: left
+                    margin: 0 0 1px 0
+                    padding: '0'
+                    display: '=(items[loop.sonosInfo.titelItemName].state || "" && String(items[loop.sonosInfo.titelItemName].state
+                      || "").trim() && String(items[loop.sonosInfo.titelItemName].state || "").trim() !== ''—'') ? ''block''
+                      : ''none'''
+                    line-height: '1.15'
+                    font-weight: '600'
+                  text: =items[loop.sonosInfo.titelItemName].state || ""
+              - component: Label
+                config:
+                  style:
+                    font-size: 12px
+                    text-align: left
+                    margin: 0 0 1px 0
+                    padding: '0'
+                    display: '=(items[loop.sonosInfo.artistItemName].state || "" && String(items[loop.sonosInfo.artistItemName].state
+                      || "").trim() && String(items[loop.sonosInfo.artistItemName].state || "").trim() !== ''—'') ? ''block''
+                      : ''none'''
+                    line-height: '1.15'
+                    opacity: '0.78'
+                  text: =items[loop.sonosInfo.artistItemName].state || ""
+              - component: Label
+                config:
+                  style:
+                    font-size: 12px
+                    text-align: left
+                    margin: 0 0 1px 0
+                    padding: '0'
+                    display: '=(items[loop.sonosInfo.trackItemName].state || "—" && String(items[loop.sonosInfo.trackItemName].state
+                      || "—").trim() && String(items[loop.sonosInfo.trackItemName].state || "—").trim() !== ''—'') ? ''block''
+                      : ''none'''
+                    line-height: '1.15'
+                    opacity: '0.78'
+                  text: =items[loop.sonosInfo.trackItemName].state || "—"
+          - component: f7-block
+            slots:
+              default:
+              - component: f7-block
+                config:
+                  style:
+                    align-items: center
+                    display: grid
+                    grid-template-columns: 1fr
+                    grid-template-rows: 1fr
+                    justify-content: center
+                slots:
+                  default:
+                  - component: f7-block
+                    config:
+                      style:
+                        display: flex
+                        grid-area: 1 / 1 / 1 / 1
+                        margin: auto
+                        padding: 0.0
+                        transform: '=(items[loop.sonosInfo.playerItemName].state === ''PLAY'') ? ''translate(25%)'' : '''''
+                        transition: 1s ease-in-out
+                        width: 75%
+                        max-width: 240px
+                    slots:
+                      default:
+                      - component: oh-image
+                        config:
+                          style:
+                            animation: '=(items[loop.sonosInfo.playerItemName].state === ''PLAY'') ? ''aurora-preloader-rotate
+                              2s linear infinite'' : '''''
+                            background-position: center
+                            background-repeat: no-repeat
+                            background-size: 36%
+                            margin: 0.0
+                            width: 99%
+                            z-index: 1.0
+                          url: /static/aurora-preloader.png
+                          visible: =items[loop.sonosInfo.playerItemName].state === 'PLAY'
+                  - component: oh-image
+                    config:
+                      item: =loop.sonosInfo.coverArtItemName
+                      style:
+                        grid-area: 1 / 1 / 1 / 1
+                        margin: auto
+                        transform: '= (items[loop.sonosInfo.playerItemName].state === ''PLAY'') ? ''translate(-25%)'' : '''''
+                        transition: 1s ease-in-out
+                        width: 75%
+                        z-index: 2.0
+                        max-width: 240px
+                      visible: =items[loop.sonosInfo.coverArtItemName].state !== 'UNDEF' && items[loop.sonosInfo.coverArtItemName].state
+                        !== 'NULL'
+                  - component: oh-image
+                    config:
+                      url: /static/no-album-cover.svg
+                      style:
+                        grid-area: 1 / 1 / 1 / 1
+                        margin: auto
+                        width: 75%
+                        display: '=((items[loop.sonosInfo.coverArtItemName] === undefined || items[loop.sonosInfo.coverArtItemName].state
+                          === ''UNDEF'' || items[loop.sonosInfo.coverArtItemName].state === ''NULL'' || !items[loop.sonosInfo.coverArtItemName].state)
+                          && items[loop.sonosInfo.playerItemName].state !== ''PLAY'') ? ''block'' : ''none'''
+                        z-index: 1.0
+                        border-radius: 6px
+                        max-width: 240px
+      - component: f7-row
+        config:
+          style:
+            justify-content: center
+        slots:
+          default:
+          - component: oh-player-item
+            config:
+              class:
+              - display-flex
+              - align-content-stretch
+              - align-items-center
+              - justify-content-space-around
+              - margin-top
+              item: =loop.sonosInfo.playerItemName
+              style:
+                width: 150px
+      - component: f7-row
+        config:
+          style:
+            justify-content: center
+            gap: 8px
+            margin-top: 4px
+            margin-bottom: 2px
+        slots:
+          default:
+          - component: oh-button
+            config:
+              text: Radio
+              round: true
+              small: true
+              fill: =items.Ambiance_Source.state === 'radio'
+              action: command
+              actionItem: Ambiance_Source
+              actionCommand: radio
+          - component: oh-button
+            config:
+              text: Spotify
+              round: true
+              small: true
+              fill: =items.Ambiance_Source.state === 'spotify'
+              action: command
+              actionItem: Ambiance_Source
+              actionCommand: spotify
+      - component: f7-card
+        config:
+          class: margin display-flex align-items-center justify-content-center
+          noShadow: true
+        slots:
+          default:
+          - component: f7-icon
+            config:
+              class: margin-horizontal
+              f7: '=items[loop.sonosInfo.zoneMuteItemName].state == ''OFF'' ? ''speaker_3'' : ''speaker_slash'' '
+              size: 30.0
+            slots:
+              default:
+              - component: oh-button
+                config:
+                  action: command
+                  actionCommand: '=items[loop.sonosInfo.zoneMuteItemName].state == ''ON'' ? ''OFF'' : ''ON'''
+                  actionItem: =loop.sonosInfo.zoneMuteItemName
+                  style:
+                    height: 100%
+                    position: absolute
+                    top: 0px
+                    width: 100%
+          - component: oh-slider
+            config:
+              item: =loop.sonosInfo.zoneVolumeItemName
+              label: true
+              releaseOnly: true
+              style:
+                width: 80%
+              unit: '%'
+          - component: f7-icon
+            config:
+              class: margin-horizontal
+              f7: hifispeaker
+              size: 30.0
+            slots:
+              default:
+              - component: oh-button
+                config:
+                  action: variable
+                  actionVariable: =loop.sonosInfo.id + '_volume'
+                  actionVariableValue: =loop.sonosInfo
+                  style:
+                    height: 100%
+                    position: absolute
+                    top: 0px
+                    width: 100%
+                slots:
+                  default:
+                  - component: f7-popup
+                    config:
+                      closeByBackdropClick: false
+                      opened: =vars[loop.sonosInfo.id + '_volume'] !== undefined
+                      style:
+                        height: auto
+                    slots:
+                      default:
+                      - component: f7-card
+                        config:
+                          title: Volume
+                        slots:
+                          default:
+                          - component: oh-repeater
+                            config:
+                              for: volumeItem
+                              fragment: true
+                              in: =(vars['general_volume'] && vars['general_volume'].volumeInformation) || []
+                              sourceType: array
+                            slots:
+                              default:
+                              - component: f7-row
+                                slots:
+                                  default:
+                                  - component: f7-col
+                                    config:
+                                      class: justify-content-center
+                                      style:
+                                        width: 33%
+                                    slots:
+                                      default:
+                                      - component: Label
+                                        config:
+                                          class: margin
+                                          text: =loop.volumeItem.zoneDisplayName
+                                  - component: f7-col
+                                    config:
+                                      class: display-flex justify-content-center align-items-center
+                                      style:
+                                        width: 66%
+                                    slots:
+                                      default:
+                                      - component: f7-icon
+                                        config:
+                                          class: margin-horizontal
+                                          f7: '=items[loop.volumeItem.muteItemName].state == ''OFF'' ? ''speaker_3'' : ''speaker_slash'' '
+                                          size: 30.0
+                                        slots:
+                                          default:
+                                          - component: oh-button
+                                            config:
+                                              action: command
+                                              actionCommand: '=items[loop.volumeItem.muteItemName].state == ''ON'' ? ''OFF''
+                                                : ''ON'''
+                                              actionItem: =loop.volumeItem.muteItemName
+                                              style:
+                                                height: 100%
+                                                position: absolute
+                                                top: 0px
+                                                width: 100%
+                                      - component: f7-icon
+                                        config:
+                                          class: margin-horizontal
+                                          f7: power
+                                          color: '=items[loop.volumeItem.powerItemName].state == ''ON'' ? ''green'' : ''gray'''
+                                          size: 30.0
+                                        slots:
+                                          default:
+                                          - component: oh-button
+                                            config:
+                                              action: command
+                                              actionCommand: '=items[loop.volumeItem.powerItemName].state == ''ON'' ? ''OFF''
+                                                : ''ON'''
+                                              actionItem: =loop.volumeItem.powerItemName
+                                              style:
+                                                height: 100%
+                                                position: absolute
+                                                top: 0px
+                                                width: 100%
+                                      - component: oh-slider
+                                        config:
+                                          class: margin
+                                          item: =loop.volumeItem.volumeItemName
+                                          label: true
+                                          releaseOnly: true
+                                          unit: '%'
+                          - component: oh-button
+                            config:
+                              clearVariable: general_volume
+                              popupClose: true
+                              text: OK
+          - component: f7-icon
+            config:
+              class: margin-horizontal
+              f7: star
+              size: 30.0
+            slots:
+              default:
+              - component: oh-button
+                config:
+                  action: variable
+                  actionVariable: =loop.sonosInfo.id + '_favorite'
+                  actionVariableValue: =loop.sonosInfo
+                  style:
+                    height: 100%
+                    position: absolute
+                    top: 0px
+                    width: 100%
+                slots:
+                  default:
+                  - component: f7-popup
+                    config:
+                      closeByBackdropClick: false
+                      opened: =vars[loop.sonosInfo.id + '_favorite'] !== undefined
+                      style:
+                        height: auto
+                    slots:
+                      default:
+                      - component: f7-card
+                        config:
+                          title: Favorieten kiezen
+                        slots:
+                          default:
+                          - component: oh-repeater
+                            config:
+                              for: currentFavorit
+                              fragment: true
+                              itemOptions: =loop.sonosInfo.favoriteItemName
+                              sourceType: itemCommandOptions
+                            slots:
+                              default:
+                              - component: f7-row
+                                slots:
+                                  default:
+                                  - component: f7-col
+                                    config:
+                                      class: display-flex align-items-center
+                                    slots:
+                                      default:
+                                      - component: f7-icon
+                                        config:
+                                          class: margin-horizontal
+                                          f7: star
+                                          size: 20.0
+                                      - component: oh-button
+                                        config:
+                                          action: command
+                                          actionCommand: =loop.currentFavorit.command
+                                          actionItem: =loop.sonosInfo.favoriteItemName
+                                          style:
+                                            color: var(--f7-block-text-color)
+                                          text: =loop.currentFavorit.label
+                          - component: oh-button
+                            config:
+                              text: OK
+                              clearVariable: general_favorite
+                              popupClose: true
+          - component: f7-block
+            config:
+              style:
+                margin-bottom: 60px

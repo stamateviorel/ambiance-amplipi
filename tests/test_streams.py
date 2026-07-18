@@ -34,9 +34,7 @@ class _FakeSrc:
 class _FakeRadio:
     def __init__(self):
         self.calls = []
-
-    def is_playing(self):
-        return False
+        self.desired_playing = False
 
     def stop(self):
         self.calls.append("stop")

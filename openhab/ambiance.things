@@ -8,3 +8,5 @@ Bridge ambianceamplipi:controller:main "Ambiance AmpliPi" [ hostname="192.168.1.
     Thing zone z4 "Wc down"   [ id=4 ]
     Thing zone z5 "Showroom"  [ id=5 ]
 }
+
+// things rebuilt 2026-07-18: source channel added (bundle must be settled BEFORE this file reloads)

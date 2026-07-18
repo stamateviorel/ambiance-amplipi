@@ -67,7 +67,10 @@ class RadioAdapter:
         self.radio = radio
 
     def playing(self):
-        return self.radio.is_playing()
+        # intent-level (`desired_playing`), NOT a live mpc probe: instant — the alarm's
+        # remember-what-played must never block on a possibly-hung mpd, and "meant to be
+        # playing" is the right semantic for resume-after-siren anyway.
+        return self.radio.desired_playing
 
     def pause(self):
         self.radio.stop()

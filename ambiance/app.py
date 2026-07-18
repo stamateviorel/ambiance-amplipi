@@ -108,9 +108,11 @@ class Controller:
         # watchdog belt (called each wav loop): keep every zone full/unmuted, the boost
         # channel at 100%, and every music source silent (a phone pressing play mid-alarm
         # must not mix Spotify over the siren) no matter what else tried mid-alarm.
+        # The source pausing is ASYNC: a hung mpd/daemon (mpc timeout 8s) must never
+        # stretch the gap between siren wav loops.
         self.zones.reassert_siren()
         self.boost.set_vol(100)
-        self.sources.pause_all()
+        threading.Thread(target=self.sources.pause_all, daemon=True).start()
 
     # ---- source arbitration (used by the /api/source endpoints + power/away semantics) ----
     @staticmethod
@@ -159,10 +161,12 @@ class Controller:
                 act = self.sources.get()
                 self._resume_source = self.sources.active \
                     if (act is not None and self._adapter_playing(act)) else None
-            self.sources.pause_all()     # radio stops, spotify pauses
+            # SIREN FIRST — never gate the alarm on pausing players (a hung mpd/daemon
+            # could block for seconds); silencing follows async + per-loop belt.
             self.boost.set_vol(100)      # alarm channel full up-front
             self.zones.siren(True)       # lock all zones full/unmuted/on (commands can't quiet it)
             self.siren.on()              # loop alarm.wav on ch0boost (re-asserts each loop)
+            threading.Thread(target=self.sources.pause_all, daemon=True).start()
         else:
             self.siren.off()
             self.zones.siren(False)      # unlock + restore the logical zone state
