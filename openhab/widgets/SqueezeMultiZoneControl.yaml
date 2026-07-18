@@ -1,9 +1,13 @@
 # SqueezeMultiZoneControl — MainUI widget for the Ambiance AmpliPi binding.
-# Adapted from the openHAB community 'SqueezeBox multizone' widget lineage;
-# now-playing lines, transport, source chips (Radio|Spotify), per-zone
-# volume/mute/power popup, station picker. Paste into a new MainUI widget
-# (Developer Tools -> Widgets) and bind via the props/items shown in the
-# repeater's `in` expression (SqueezeGeneral* / AmpliPi_* / Ambiance_Source).
+# Adapted from the openHAB community 'SqueezeBox multizone' widget lineage.
+# Now-playing + cover, transport, source chips (Radio|Spotify), station picker,
+# and a per-zone volume/mute/power popup that is FULLY DYNAMIC: it iterates the
+# members of the zones group (default `g_amplipi`, override via `zonesGroup` in the
+# repeater config). Conventions it relies on: one Dimmer per zone named
+# `<Prefix>_<Zone>_Volume` with sibling `_Mute`/`_Power` switches, and the Dimmer's
+# label ending in ' volume' (e.g. "Kantoor volume") — the row shows the label
+# minus that suffix. Zone things/items can come straight from the binding's
+# zone auto-discovery.
 uid: SqueezeMultiZoneControl_new
 tags: []
 props:
@@ -28,15 +32,8 @@ slots:
       fragment: true
       in: '=[{ playerItemName: ''SqueezeGeneralControl'', titelItemName: ''SqueezeGeneralTitle'', artistItemName: ''SqueezeGeneralArtist'',
         trackItemName: ''SqueezeGeneralRemoteTitle'', coverArtItemName: ''SqueezeGeneralCover'', zoneVolumeItemName: ''SqueezeGeneralVolume'',
-        zoneMuteItemName: ''SqueezeGeneralMute'', favoriteItemName: ''SqueezeGeneralPlayFavorite'', id: ''general'', volumeInformation:
-        [{ volumeItemName: ''AmpliPi_Office_Volume'', muteItemName: ''AmpliPi_Office_Mute'', powerItemName: ''AmpliPi_Office_Power'',
-        zoneDisplayName: ''Kantoor'' }, { volumeItemName: ''AmpliPi_WcUp_Volume'', muteItemName: ''AmpliPi_WcUp_Mute'', powerItemName:
-        ''AmpliPi_WcUp_Power'', zoneDisplayName: ''Wc boven'' }, { volumeItemName: ''AmpliPi_MainArea_Volume'', muteItemName:
-        ''AmpliPi_MainArea_Mute'', powerItemName: ''AmpliPi_MainArea_Power'', zoneDisplayName: ''Hoofdruimte'' }, { volumeItemName:
-        ''AmpliPi_Kitchen_Volume'', muteItemName: ''AmpliPi_Kitchen_Mute'', powerItemName: ''AmpliPi_Kitchen_Power'', zoneDisplayName:
-        ''Keuken'' }, { volumeItemName: ''AmpliPi_WcDown_Volume'', muteItemName: ''AmpliPi_WcDown_Mute'', powerItemName: ''AmpliPi_WcDown_Power'',
-        zoneDisplayName: ''Wc beneden'' }, { volumeItemName: ''AmpliPi_Showroom_Volume'', muteItemName: ''AmpliPi_Showroom_Mute'',
-        powerItemName: ''AmpliPi_Showroom_Power'', zoneDisplayName: ''Showroom'' }], groupedThingDeleteVars: ''general'' }]'
+        zoneMuteItemName: ''SqueezeGeneralMute'', favoriteItemName: ''SqueezeGeneralPlayFavorite'', id: ''general'', zonesGroup:
+        ''g_amplipi'', groupedThingDeleteVars: ''general'' }]'
       sourceType: array
     slots:
       default:
@@ -265,10 +262,11 @@ slots:
                           default:
                           - component: oh-repeater
                             config:
-                              for: volumeItem
+                              for: zitem
                               fragment: true
-                              in: =(vars['general_volume'] && vars['general_volume'].volumeInformation) || []
-                              sourceType: array
+                              sourceType: itemsInGroup
+                              groupItem: =(loop.sonosInfo.zonesGroup || 'g_amplipi')
+                              filter: loop.zitem.type == 'Dimmer'
                             slots:
                               default:
                               - component: f7-row
@@ -284,7 +282,7 @@ slots:
                                       - component: Label
                                         config:
                                           class: margin
-                                          text: =loop.volumeItem.zoneDisplayName
+                                          text: =loop.zitem.label.replace(' volume','')
                                   - component: f7-col
                                     config:
                                       class: display-flex justify-content-center align-items-center
@@ -295,16 +293,17 @@ slots:
                                       - component: f7-icon
                                         config:
                                           class: margin-horizontal
-                                          f7: '=items[loop.volumeItem.muteItemName].state == ''OFF'' ? ''speaker_3'' : ''speaker_slash'' '
+                                          f7: '=items[loop.zitem.name.replace(''_Volume'',''_Mute'')].state == ''OFF'' ? ''speaker_3''
+                                            : ''speaker_slash'' '
                                           size: 30.0
                                         slots:
                                           default:
                                           - component: oh-button
                                             config:
                                               action: command
-                                              actionCommand: '=items[loop.volumeItem.muteItemName].state == ''ON'' ? ''OFF''
-                                                : ''ON'''
-                                              actionItem: =loop.volumeItem.muteItemName
+                                              actionCommand: '=items[loop.zitem.name.replace(''_Volume'',''_Mute'')].state
+                                                == ''ON'' ? ''OFF'' : ''ON'''
+                                              actionItem: =loop.zitem.name.replace('_Volume','_Mute')
                                               style:
                                                 height: 100%
                                                 position: absolute
@@ -314,16 +313,17 @@ slots:
                                         config:
                                           class: margin-horizontal
                                           f7: power
-                                          color: '=items[loop.volumeItem.powerItemName].state == ''ON'' ? ''green'' : ''gray'''
+                                          color: '=items[loop.zitem.name.replace(''_Volume'',''_Power'')].state == ''ON''
+                                            ? ''green'' : ''gray'''
                                           size: 30.0
                                         slots:
                                           default:
                                           - component: oh-button
                                             config:
                                               action: command
-                                              actionCommand: '=items[loop.volumeItem.powerItemName].state == ''ON'' ? ''OFF''
-                                                : ''ON'''
-                                              actionItem: =loop.volumeItem.powerItemName
+                                              actionCommand: '=items[loop.zitem.name.replace(''_Volume'',''_Power'')].state
+                                                == ''ON'' ? ''OFF'' : ''ON'''
+                                              actionItem: =loop.zitem.name.replace('_Volume','_Power')
                                               style:
                                                 height: 100%
                                                 position: absolute
@@ -332,7 +332,7 @@ slots:
                                       - component: oh-slider
                                         config:
                                           class: margin
-                                          item: =loop.volumeItem.volumeItemName
+                                          item: =loop.zitem.name
                                           label: true
                                           releaseOnly: true
                                           unit: '%'

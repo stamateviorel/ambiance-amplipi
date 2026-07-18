@@ -86,6 +86,7 @@ class ZoneUpdate(BaseModel):
     vol: Optional[int] = None
     mute: Optional[bool] = None
     power: Optional[bool] = None
+    name: Optional[str] = None    # rename the zone (persisted to zones.conf)
 
 
 class MasterUpdate(BaseModel):

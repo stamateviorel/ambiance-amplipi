@@ -64,6 +64,12 @@ class TestZones(unittest.TestCase):
         self.assertFalse(any(s["mute"] for s in snap))
         self.assertTrue(all(s["power"] for s in snap))
 
+    def test_rename(self):
+        self.assertTrue(self.z.rename(0, "Studeerkamer"))
+        self.assertEqual(self.z.snapshot()[0]["name"], "Studeerkamer")
+        self.assertFalse(self.z.rename(9, "x"))
+        self.assertFalse(self.z.rename(-1, "x"))
+
     def test_master_mute_reports_false_during_siren(self):
         self.z.set_master_mute(True)
         self.z.siren(True)

@@ -107,6 +107,13 @@ class Zones:
                 for z in range(self.n):
                     self.rt.update_zone_vol(z, MAX_DB)
 
+    def rename(self, z, name):
+        with self.lock:
+            if not 0 <= z < self.n:
+                return False
+            self.names[z] = name
+            return True
+
     @property
     def siren_active(self):
         return self._siren

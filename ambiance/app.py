@@ -20,7 +20,7 @@ from sse_starlette.sse import EventSourceResponse
 from . import models
 from .announce import Announcer
 from .alarm import Siren
-from .config import Config
+from .config import Config, save_zones
 from .cover import Cover
 from .health import HealthMonitor
 from .radio import Radio
@@ -144,6 +144,17 @@ class Controller:
         if src is None or (name != "radio" and not src.can_resume()):
             name = "radio"
         self.select_source(name)
+
+    def rename_zone(self, zid, name):
+        """Rename a zone (web UI); persisted atomically to zones.conf."""
+        name = str(name or "").replace("|", " ").replace("\n", " ").replace("\r", " ").strip()[:32]
+        if not name or not self.zones.rename(zid, name):
+            return False
+        for z in self.cfg.zones:
+            if z["id"] == zid:
+                z["name"] = name
+        save_zones(self.cfg.zones_file, self.cfg.zones)
+        return True
 
     def transport(self, delta):
         src = self.sources.get()
@@ -320,6 +331,8 @@ def zone_update(zid: int, u: models.ZoneUpdate):
         ctl.zones.set_mute(zid, u.mute)
     if u.power is not None:
         ctl.zones.set_power(zid, u.power)
+    if u.name is not None:
+        ctl.rename_zone(zid, u.name)     # persisted to zones.conf
     return ctl.status()
 
 

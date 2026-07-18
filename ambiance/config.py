@@ -2,8 +2,14 @@
 environment (AMBIANCE_*) with a zones file (`id|name|default_pct`). Fail-safe defaults:
 hardware = Mock and audio = dry unless explicitly set live (so a missing/edited config can
 never surprise-play audio or reset the real preamps).
+
+zones.conf stays the single source of truth for zone names; the web UI's zone-rename
+rewrites it ATOMICALLY via save_zones() (tmp+rename+.bak — same pattern as the station
+list, never a half-written file).
 """
 import os
+import shutil
+import tempfile
 
 
 def _load_zones(path):
@@ -37,6 +43,32 @@ def _load_groups(path):
     except Exception:
         pass
     return groups
+
+
+def save_zones(path, zones):
+    """Atomically rewrite zones.conf (used by the web UI's zone rename)."""
+    header = ("# ambiance-amplipi — zones.conf   (id | name | default_volume_percent)\n"
+              "# Editable from the web UI (tap a zone name); ids match the AmpliPi preamp channels.\n\n")
+    body = "".join("%d|%s|%d\n" % (z["id"], z["name"], int(z.get("default_pct", 50)))
+                   for z in zones)
+    d = os.path.dirname(path) or "."
+    try:
+        fd, tmp = tempfile.mkstemp(dir=d, prefix=".zones-", suffix=".tmp")
+        with os.fdopen(fd, "w") as f:
+            f.write(header + body)
+        if os.path.exists(path):
+            try:
+                shutil.copy2(path, path + ".bak")
+            except OSError:
+                pass
+        os.replace(tmp, path)
+        try:
+            os.chmod(path, 0o644)
+        except OSError:
+            pass
+        return True
+    except Exception:
+        return False
 
 
 # Generic fallback, used ONLY when zones.conf is missing/empty. Real installs name their

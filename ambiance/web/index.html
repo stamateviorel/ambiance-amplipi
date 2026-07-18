@@ -196,6 +196,12 @@ function mvCommit(v){ dragging = false; patch('/api/zones', {vol: +v}).then(()=>
 function zPower(id,on){ patch('/api/zones/'+id, {power:on}).then(()=>setTimeout(refresh,250)); }
 function zMute(id,on){ patch('/api/zones/'+id, {mute:on}).then(()=>setTimeout(refresh,250)); }
 function zVol(id,v){ patch('/api/zones/'+id, {vol:+v}); }
+function zRename(id){
+  const z = ST && ST.zones && ST.zones.find(x=>x.id===id); if(!z) return;
+  const n = prompt('Nieuwe naam voor deze zone:', z.name);
+  if(n && n.trim() && n.trim() !== z.name)
+    patch('/api/zones/'+id, {name:n.trim()}).then(()=>setTimeout(refresh,250));
+}
 
 function renderStations(list, cur){
   const sel = document.getElementById('stations');
@@ -209,7 +215,8 @@ function renderZones(zones){
   el.innerHTML = zones.map(z=>{
     const silent = z.mute || !z.power;
     return `<div class="zone">
-      <div class="zname" style="opacity:${silent?.5:1}">${esc(z.name)}</div>
+      <div class="zname" style="opacity:${silent?.5:1}; cursor:pointer" title="Tik om te hernoemen"
+           onclick="zRename(${z.id})">${esc(z.name)} <span style="opacity:.35;font-size:12px">✎</span></div>
       <div class="zctl">
         <span class="pill ${z.power?'on':''}" onclick="zPower(${z.id},${!z.power})">${z.power?'Aan':'Uit'}</span>
         <span class="pill ${z.mute?'muted':''}" onclick="zMute(${z.id},${!z.mute})">${z.mute?'Gedempt':'Dempen'}</span>

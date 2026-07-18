@@ -61,7 +61,7 @@ systemctl --user enable --now ambiance-mpd ambiance ambiance-display
 
 ## REST API
 
-`GET /` — web UI · `GET /api/status` · `GET /api/events` (SSE) · `POST /api/radio` `{station}` / `/api/radio/{play,stop,next,prev}` · `POST /api/source` `{name}` / `/api/source/{play,stop,next,prev}` (source-aware transport) · `GET/POST /api/stations`, `PATCH/DELETE /api/stations/{name}`, `POST /api/stations/{name}/default` · `PATCH /api/zones/{id}` `{vol,mute,power}` · `PATCH /api/zones` (master) · `POST /api/announce` `{url,vol?}` · `POST /api/alarm` `{on}` · `GET /api/alarm/selftest` · `GET /api/cover`.
+`GET /` — web UI · `GET /api/status` · `GET /api/events` (SSE) · `POST /api/radio` `{station}` / `/api/radio/{play,stop,next,prev}` · `POST /api/source` `{name}` / `/api/source/{play,stop,next,prev}` (source-aware transport) · `GET/POST /api/stations`, `PATCH/DELETE /api/stations/{name}`, `POST /api/stations/{name}/default` · `PATCH /api/zones/{id}` `{vol,mute,power,name}` (rename persists to zones.conf) · `PATCH /api/zones` (master) · `POST /api/announce` `{url,vol?}` · `POST /api/alarm` `{on}` · `GET /api/alarm/selftest` · `GET /api/cover`.
 
 ## Reliability
 

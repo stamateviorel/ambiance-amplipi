@@ -29,6 +29,16 @@ class TestConfigZones(unittest.TestCase):
     def test_missing_file(self):
         self.assertEqual(_load_zones("/no/such/file"), [])
 
+    def test_save_load_roundtrip(self):
+        from ambiance.config import save_zones
+        path = self._write("0|Old|70\n")
+        zones = [{"id": 0, "name": "Nieuwe Naam", "default_pct": 70},
+                 {"id": 1, "name": "Zone 2", "default_pct": 50}]
+        self.assertTrue(save_zones(path, zones))
+        self.addCleanup(lambda: os.path.exists(path + ".bak") and os.remove(path + ".bak"))
+        self.assertEqual(_load_zones(path), zones)         # rename survives a restart
+        self.assertTrue(os.path.exists(path + ".bak"))     # previous file kept as .bak
+
     def test_parse_groups(self):
         from ambiance.config import _load_groups
         g = _load_groups(self._write("# c\nBoven|0,1\nBeneden|2,3,4\nbad|\n|1,2\n"))

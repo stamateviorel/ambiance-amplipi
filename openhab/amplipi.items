@@ -5,9 +5,9 @@
 Group g_amplipi "AmpliPi zones" <speaker> (g_music)
 
 // Office (zone 0)
-Switch   AmpliPi_Office_Power    "Office aan/uit"            (g_amplipi) { channel="ambianceamplipi:zone:main:z0:power" }
-Dimmer   AmpliPi_Office_Volume   "Office volume [%d %%]"      (g_amplipi) { channel="ambianceamplipi:zone:main:z0:volume" }
-Switch   AmpliPi_Office_Mute     "Office dempen"             (g_amplipi) { channel="ambianceamplipi:zone:main:z0:mute" }
+Switch   AmpliPi_Office_Power    "Kantoor aan/uit"            (g_amplipi) { channel="ambianceamplipi:zone:main:z0:power" }
+Dimmer   AmpliPi_Office_Volume   "Kantoor volume [%d %%]"      (g_amplipi) { channel="ambianceamplipi:zone:main:z0:volume" }
+Switch   AmpliPi_Office_Mute     "Kantoor dempen"             (g_amplipi) { channel="ambianceamplipi:zone:main:z0:mute" }
 
 // Wc up (zone 1)
 Switch   AmpliPi_WcUp_Power      "Wc boven aan/uit"          (g_amplipi) { channel="ambianceamplipi:zone:main:z1:power" }
