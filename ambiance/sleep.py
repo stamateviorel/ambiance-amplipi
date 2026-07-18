@@ -1,5 +1,6 @@
-"""Sleep timer: stop the radio after N minutes. Set/cancel/re-set at any time; the current
-remaining time is reported in /api/status so the binding, web UI and front screen can show it.
+"""Sleep timer: silence the active source after N minutes. Set/cancel/re-set at any time;
+the remaining time is reported in /api/status (shown by the web UI; the openHAB binding
+ignores it for now — no channel).
 """
 import threading
 import time

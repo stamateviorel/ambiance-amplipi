@@ -44,20 +44,29 @@ Requires Python 3.7+ with `fastapi`, `uvicorn`, `pydantic` **v1**, `smbus2`, `py
 
 ```bash
 # from a checkout on the Pi
-cp -r ambiance config assets systemd /home/pi/ambiance-amplipi/
+cp -r ambiance config assets systemd scripts /home/pi/ambiance-amplipi/
 systemctl --user enable --now ambiance-mpd ambiance ambiance-display
+# optional — Spotify Connect (fetches the go-librespot binary):
+scripts/install-spotify.sh && systemctl --user enable --now ambiance-spotify
 ```
 
 ## Configuration (declarative, env-driven — no mutable house state)
 
 | Variable | Default | Description |
 |---|---|---|
+| `AMBIANCE_DIR` | `/home/pi/ambiance-amplipi` | install root (config/assets paths derive from it) |
 | `AMBIANCE_HW` | `mock` | `mock` or `rpi` (`rpi` resets the preamps on start) |
 | `AMBIANCE_DRY` | `1` | `1` = no audio side effects (fail-safe); `0` = live |
 | `AMBIANCE_PORT` | `8080` | HTTP port |
-| `AMBIANCE_VOL_CTL` | `Ch0` | the ch0 softvol amixer control ducked for announcements |
+| `AMBIANCE_VOL_CTL` | `Ch0` | the source softvol amixer control (master volume; ducked for announcements) |
+| `AMBIANCE_ANNOUNCE_DEV` | `ch0boost` | ALSA device announcements + the siren play on |
+| `AMBIANCE_DUCK_PCT` | `45` | source level (%) while an announcement plays |
+| `AMBIANCE_MPD_HOST` / `AMBIANCE_MPD_PORT` | `127.0.0.1` / `6600` | where mpd listens |
 | `AMBIANCE_HEALTH_INTERVAL` | `15` | health sweep / self-heal interval (s) |
-| `AMBIANCE_ZONES` / `AMBIANCE_STATIONS` | `config/*.conf` | zone list (`id\|name\|default_pct`) + stations (`name\|url`, first = default) |
+| `AMBIANCE_ZONES` / `AMBIANCE_STATIONS` / `AMBIANCE_GROUPS` | `config/*.conf` | zones (`id\|name\|default_pct`; renameable from the web UI), stations (`name\|url\|logo?`, first = default), groups (`Name\|ids`) |
+| `AMBIANCE_ALARM` | `assets/alarm.wav` | the siren WAV |
+| `AMBIANCE_SPOTIFY` | `1` | register the Spotify Connect source (inert if the daemon is absent); `0` hides it |
+| `AMBIANCE_SPOTIFY_API` | `http://127.0.0.1:3678` | go-librespot local API |
 
 ## REST API
 

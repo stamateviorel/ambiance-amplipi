@@ -65,9 +65,6 @@ class Announcer:
         except queue.Full:
             return False
 
-    def state(self):
-        return {"queue": self.q.qsize(), "dev": self.dev, "duck": self.duck, "dry": self.dry}
-
     def _worker(self):
         while True:
             url, vol = self.q.get()
