@@ -245,7 +245,12 @@ def alarm_selftest():
 @app.get("/api/cover")
 def cover():
     r = ctl.radio
-    data = ctl.cover.bytes_for(r.now_playing()["title"], r.current_station_logo(), r.current_station())
+    if not r.is_playing():
+        return Response(status_code=204)   # nothing playing -> no cover (widget shows its placeholder)
+    np = r.now_playing()
+    # while playing there is ALWAYS a cover: track art -> station logo -> a tile (station|title|"Radio")
+    tile = r.current_station() or np["title"] or "Radio"
+    data = ctl.cover.bytes_for(np["title"], r.current_station_logo(), tile)
     if data:
         return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
     return Response(status_code=204)
