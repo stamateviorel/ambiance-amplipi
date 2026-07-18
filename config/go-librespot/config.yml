@@ -1,0 +1,23 @@
+# go-librespot — Spotify Connect endpoint for ambiance-amplipi.
+#
+# Audio goes to ALSA `ch0`: the SAME softvol+dmix as the radio, so the announcement duck,
+# the source volume (Ch0) and the siren all apply to Spotify automatically. The mix runs at
+# a fixed 44.1 kHz = Spotify's native rate (no resample).
+#
+# zeroconf credentials: no login stored here — the Spotify app on the phone discovers
+# "Ambiance AmpliPi" on the LAN and hands over the session (Spotify Premium required).
+# The local API (127.0.0.1:3678) is what ambiance's spotify.py polls/steers.
+device_name: Ambiance AmpliPi
+device_type: speaker
+audio_backend: alsa
+audio_device: ch0
+bitrate: 320
+volume_steps: 100
+initial_volume: 85
+zeroconf_enabled: true
+credentials:
+  type: zeroconf
+server:
+  enabled: true
+  address: 127.0.0.1
+  port: 3678

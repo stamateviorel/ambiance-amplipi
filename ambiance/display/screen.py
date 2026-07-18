@@ -48,6 +48,13 @@ def get_state():
     try:
         d = json.loads(urllib.request.urlopen(API + "/api/status", timeout=4).read())
         r = d.get("radio", {})
+        sp = d.get("spotify") or {}
+        src = (d.get("source") or {}).get("active")
+        if src == "spotify" and sp.get("running"):
+            # Spotify owns the audio path -> header shows the source, body the track
+            title = " — ".join(x for x in (sp.get("artist"), sp.get("track")) if x)
+            return {"station": "Spotify", "playing": sp.get("playing", False), "title": title,
+                    "siren": d.get("siren", False), "zones": d.get("zones", [])}
         return {"station": r.get("station"), "playing": r.get("playing"), "title": r.get("title", ""),
                 "siren": d.get("siren", False), "zones": d.get("zones", [])}
     except Exception:

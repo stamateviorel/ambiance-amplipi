@@ -59,10 +59,11 @@
       </div>
     </div>
     <div class="row transport">
-      <button onclick="post('/api/radio/prev')">⏮</button>
+      <button onclick="post('/api/source/prev')">⏮</button>
       <button id="playbtn" class="primary" onclick="togglePlay()">▶︎</button>
-      <button onclick="post('/api/radio/next')">⏭</button>
+      <button onclick="post('/api/source/next')">⏭</button>
     </div>
+    <div class="row" id="srcrow" style="display:none; justify-content:center; gap:8px; margin-top:12px"></div>
     <div class="lbl">Zender</div>
     <select id="stations" onchange="selectStation(this.value)"></select>
     <div class="lbl">Slaaptimer <span id="sleeprem" style="text-transform:none;color:var(--accent);font-weight:700"></span></div>
@@ -139,8 +140,25 @@ async function post(u, body){ await fetch(u, {method:'POST', headers:{'Content-T
 async function patch(u, body){ await fetch(u, {method:'PATCH', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body)}); }
 
-function togglePlay(){ post(ST && ST.radio.playing ? '/api/radio/stop' : '/api/radio/play'); }
+function spotActive(d){ return d && d.source && d.source.active==='spotify' && d.spotify && d.spotify.running; }
+function isPlaying(d){ if(!d) return false; return spotActive(d) ? d.spotify.playing : (d.radio && d.radio.playing); }
+function togglePlay(){ post(isPlaying(ST) ? '/api/source/stop' : '/api/source/play'); }
 function selectStation(name){ if(name) post('/api/radio', {station:name}); }
+
+// ---- sources (radio / spotify / future services) ----
+const SRC_LABELS = { radio: 'Radio', spotify: 'Spotify' };
+function renderSources(src){
+  const row = document.getElementById('srcrow');
+  const av = (src && src.available) || [];
+  if (av.length < 2){ row.style.display='none'; return; }
+  row.style.display='flex';
+  const key = av.join('') + '|' + (src.active||'');
+  if (row.dataset.k === key) return;
+  row.dataset.k = key;
+  row.innerHTML = av.map(n=>`<button class="pill ${n===src.active?'on':''}"
+      onclick="selSource('${esc(n)}')">${esc(SRC_LABELS[n]||n)}</button>`).join('');
+}
+function selSource(n){ post('/api/source', {name:n}); }
 
 // ---- station management ----
 let ADMIN = [], editingOrig = null;
@@ -221,10 +239,18 @@ function setSleep(min){ post('/api/sleep', {minutes:min}); }
 function apply(d){
   ST = d;
   const r = d.radio || {};
-  document.getElementById('station').textContent = r.station || '— geen zender —';
-  document.getElementById('title').textContent = r.title || '';
-  document.getElementById('dot').className = 'dot' + (r.playing?' on':'');
-  document.getElementById('playbtn').textContent = r.playing ? '⏹' : '▶︎';
+  const spot = spotActive(d), playing = isPlaying(d);
+  if (spot){
+    document.getElementById('station').textContent = d.spotify.track || 'Spotify';
+    document.getElementById('title').textContent =
+      [d.spotify.artist, d.spotify.album].filter(Boolean).join(' — ') || 'Spotify';
+  } else {
+    document.getElementById('station').textContent = r.station || '— geen zender —';
+    document.getElementById('title').textContent = r.title || '';
+  }
+  document.getElementById('dot').className = 'dot' + (playing?' on':'');
+  document.getElementById('playbtn').textContent = playing ? '⏹' : '▶︎';
+  renderSources(d.source);
   renderStations(r.stations || [], r.station);
   if (!dragging) document.getElementById('mvol').value = d.master_vol;
   document.getElementById('mmute').className = 'pill' + (d.master_mute?' muted':'');
@@ -237,7 +263,7 @@ function apply(d){
   he.textContent = h.ok ? 'ok' : (h.issues||[]).join('; ') || 'probleem';
   he.className = h.ok ? 'ok' : 'bad';
   const art = document.getElementById('art');
-  if (r.playing) art.src = '/api/cover?t=' + Math.floor(Date.now()/15000); else art.removeAttribute('src');
+  if (playing) art.src = '/api/cover?t=' + Math.floor(Date.now()/15000); else art.removeAttribute('src');
   document.getElementById('clock').textContent = new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
 }
 // ---- system / settings ----

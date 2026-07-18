@@ -26,6 +26,8 @@ from .health import HealthMonitor
 from .radio import Radio
 from .sleep import Sleep
 from .source import Source
+from .spotify import Spotify
+from .streams import RadioAdapter, Sources
 from .system import System
 from .hardware.zones import Zones
 
@@ -43,12 +45,22 @@ class Controller:
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
                                    is_busy=lambda: self.siren.active,
                                    boost=self.boost)   # per-announcement volume on the boost channel
-        self._resume_radio = False   # was the radio playing when the siren fired? (resume, not start)
         self.cover = Cover()
         self.source = Source(ctl=cfg.vol_ctl, dry=cfg.dry)   # source (Ch0) volume, independent of zones
-        self.system = System(dry=cfg.dry)                    # stats + reboot/shutdown for the settings page
+        # ---- playback sources (extensible: register an adapter -> it appears everywhere) ----
+        self.spotify = Spotify(api=getattr(cfg, "spotify_api", "http://127.0.0.1:3678"),
+                               on_playing=lambda: self.sources.claim("spotify"))  # phone pressed play
+        self.sources = Sources()
+        self.sources.register("radio", RadioAdapter(self.radio))
+        if getattr(cfg, "spotify", True):
+            self.sources.register("spotify", self.spotify)
+        self._resume_source = None   # source playing when the siren fired (resume, not start)
+        services = ["ambiance", "ambiance-mpd", "ambiance-display"]
+        if getattr(cfg, "spotify", True):
+            services.append("ambiance-spotify")
+        self.system = System(services=services, dry=cfg.dry)  # stats + power for the settings page
         self.groups = getattr(cfg, "groups", [])
-        self.sleep = Sleep(on_fire=self.radio.stop)
+        self.sleep = Sleep(on_fire=lambda: self.sources.pause_all())  # silence whatever plays
         self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
 
     def status(self):
@@ -61,6 +73,8 @@ class Controller:
             "health": self.monitor.state,
             "groups": self._group_states(),
             "sleep": self.sleep.state(),
+            "source": self.sources.state(),
+            "spotify": self.spotify.state(),
         }
 
     def _group_states(self):
@@ -91,26 +105,70 @@ class Controller:
         return True
 
     def _siren_reassert(self):
-        # watchdog belt (called each wav loop): keep every zone full/unmuted and the boost
-        # channel at 100% no matter what else tried to change them mid-alarm.
+        # watchdog belt (called each wav loop): keep every zone full/unmuted, the boost
+        # channel at 100%, and every music source silent (a phone pressing play mid-alarm
+        # must not mix Spotify over the siren) no matter what else tried mid-alarm.
         self.zones.reassert_siren()
         self.boost.set_vol(100)
+        self.sources.pause_all()
+
+    # ---- source arbitration (used by the /api/source endpoints + power/away semantics) ----
+    @staticmethod
+    def _adapter_playing(adapter):
+        try:
+            return bool(adapter.playing())
+        except Exception:
+            return False
+
+    def select_source(self, name):
+        """Switch to + start `name`. Refused for unknown names; ignored during the siren."""
+        if name not in self.sources.available:
+            return False
+        if self.siren.active:
+            return True                    # nothing may play over the alarm
+        self.sources.claim(name)           # pauses the others
+        try:
+            self.sources.get(name).resume()
+        except Exception:
+            pass
+        return True
+
+    def play_active(self):
+        """Resume the active source; a dead remote session falls back to the radio."""
+        if self.siren.active:
+            return
+        name = self.sources.active
+        src = self.sources.get(name)
+        if src is None or (name != "radio" and not src.can_resume()):
+            name = "radio"
+        self.select_source(name)
+
+    def transport(self, delta):
+        src = self.sources.get()
+        if src is None or self.siren.active:
+            return
+        try:
+            src.next() if delta > 0 else src.prev()
+        except Exception:
+            pass
 
     def alarm(self, on):
         # safety-critical: independent of mpd — fires even if the radio player is dead
         if on:
             if not self.siren.active:    # a retried ON must not clobber the remembered state
-                self._resume_radio = self.radio.desired_playing
-            self.radio.stop()
+                act = self.sources.get()
+                self._resume_source = self.sources.active \
+                    if (act is not None and self._adapter_playing(act)) else None
+            self.sources.pause_all()     # radio stops, spotify pauses
             self.boost.set_vol(100)      # alarm channel full up-front
             self.zones.siren(True)       # lock all zones full/unmuted/on (commands can't quiet it)
             self.siren.on()              # loop alarm.wav on ch0boost (re-asserts each loop)
         else:
             self.siren.off()
             self.zones.siren(False)      # unlock + restore the logical zone state
-            if self._resume_radio:       # RESUME the radio only if it was playing pre-alarm
-                self._resume_radio = False
-                self.radio.play()
+            if self._resume_source:      # RESUME what was playing pre-alarm (never start fresh)
+                name, self._resume_source = self._resume_source, None
+                self.select_source(name)
 
 
 cfg = Config()
@@ -151,15 +209,17 @@ async def events(request: Request):
     return EventSourceResponse(gen())
 
 
-# ---- radio + stations ----
+# ---- radio + stations (explicitly playing the radio claims the audio path) ----
 @app.post("/api/radio", response_model=models.Status)
 def radio_play(sel: models.StationSelect):
+    ctl.sources.claim("radio")             # spotify (or any other source) yields
     ctl.radio.play_station(sel.station)
     return ctl.status()
 
 
 @app.post("/api/radio/play", response_model=models.Status)
 def radio_resume():
+    ctl.sources.claim("radio")
     ctl.radio.play()
     return ctl.status()
 
@@ -172,13 +232,47 @@ def radio_stop():
 
 @app.post("/api/radio/next", response_model=models.Status)
 def radio_next():
+    ctl.sources.claim("radio")
     ctl.radio.cycle(1)
     return ctl.status()
 
 
 @app.post("/api/radio/prev", response_model=models.Status)
 def radio_prev():
+    ctl.sources.claim("radio")
     ctl.radio.cycle(-1)
+    return ctl.status()
+
+
+# ---- sources (source-aware transport: works for radio, spotify, and future services) ----
+@app.post("/api/source", response_model=models.Status)
+def source_select(s: models.SourceSelect):
+    if not ctl.select_source(s.name):
+        raise HTTPException(status_code=404, detail="bron onbekend")
+    return ctl.status()
+
+
+@app.post("/api/source/play", response_model=models.Status)
+def source_play():
+    ctl.play_active()
+    return ctl.status()
+
+
+@app.post("/api/source/stop", response_model=models.Status)
+def source_stop():
+    ctl.sources.pause_all()
+    return ctl.status()
+
+
+@app.post("/api/source/next", response_model=models.Status)
+def source_next():
+    ctl.transport(1)
+    return ctl.status()
+
+
+@app.post("/api/source/prev", response_model=models.Status)
+def source_prev():
+    ctl.transport(-1)
     return ctl.status()
 
 
@@ -266,6 +360,13 @@ def alarm_selftest():
 
 @app.get("/api/cover")
 def cover():
+    # Spotify active -> serve its album art (same normalise+cache path as station logos)
+    sp = ctl.spotify.state()
+    if ctl.sources.active == "spotify" and sp["playing"]:
+        data = ctl.cover.bytes_for("", sp["cover"] or None, sp["track"] or "Spotify")
+        if data:
+            return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
+        return Response(status_code=204)
     r = ctl.radio
     if not r.is_playing():
         return Response(status_code=204)   # nothing playing -> no cover (widget shows its placeholder)
@@ -301,6 +402,8 @@ def system_shutdown():
 @app.on_event("startup")
 def _startup():
     ctl.monitor.start()   # background health sweeps + dropped-stream self-heal
+    if "spotify" in ctl.sources.available:
+        ctl.spotify.start()   # poll go-librespot: state cache + phone-started-playback events
     # boot-to-radio: after mpd is up, if nothing is queued, play the default station
     def boot():
         time.sleep(4)

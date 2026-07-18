@@ -1,0 +1,14 @@
+[Unit]
+Description=ambiance-amplipi :: spotify connect (go-librespot -> ch0)
+Documentation=https://github.com/devgianlu/go-librespot
+After=network-online.target sound.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/ambiance-amplipi
+ExecStart=/home/pi/ambiance-amplipi/bin/go-librespot --config_dir /home/pi/ambiance-amplipi/config/go-librespot
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

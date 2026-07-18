@@ -1,6 +1,6 @@
 # Ambiance AmpliPi
 
-A small, single-purpose whole-house audio appliance for a Raspberry-Pi + [AmpliPi](https://github.com/micro-nova/AmpliPi) preamp: **internet radio**, **public-address announcements**, and a **burglar siren**, over up to six amplified zones. It is a heavily stripped fork of AmpliPi that keeps only the hardware layer (`amplipi.rt` → the 6-zone preamp over I²C) and replaces everything else with a tiny radio-first REST service.
+A small, single-purpose whole-house audio appliance for a Raspberry-Pi + [AmpliPi](https://github.com/micro-nova/AmpliPi) preamp: **internet radio**, **Spotify Connect**, **public-address announcements**, and a **burglar siren**, over up to six amplified zones. It is a heavily stripped fork of AmpliPi that keeps only the hardware layer (`amplipi.rt` → the 6-zone preamp over I²C) and replaces everything else with a tiny radio-first REST service.
 
 It pairs with the [`ambianceamplipi` openHAB binding](https://github.com/openhab/openhab-addons) but is fully usable stand-alone (REST API + a built-in web UI).
 
@@ -16,15 +16,27 @@ The full AmpliPi stack (FastAPI + a mutable `house.json` + streams + LMS + squee
 ## Architecture
 
 ```
-mpd (radio) ─┐
-             ├─ ch0 / ch0boost @44.1k ─ dmix ─ HiFiBerry DAC ─ AmpliPi preamp ─ 6 zones
-aplay (PA/siren) ─┘
+mpd (radio) ──────────────┐
+go-librespot (spotify) ───┼─ ch0 / ch0boost @44.1k ─ dmix ─ HiFiBerry DAC ─ AmpliPi preamp ─ 6 zones
+aplay (PA/siren) ─────────┘
        ▲
 ambiance.service (FastAPI)  ── REST + SSE + web UI ──▶ openHAB ambianceamplipi binding
-  radio.py (mpc)  ·  announce.py  ·  alarm.py (siren)  ·  hardware/zones.py (preamp)
+  radio.py (mpc)  ·  spotify.py (go-librespot API)  ·  streams.py (source arbitration)
+  announce.py  ·  alarm.py (siren)  ·  hardware/zones.py (preamp)
   health.py (self-heal + report)  ·  cover.py (album art)
 ambiance-display.service ── ILI9341 front screen (own process; a screen crash never touches audio)
 ```
+
+## Playback sources (extensible)
+
+Everything feeding the mix registers as a **source** (`ambiance/streams.py`): the radio and, when
+`ambiance-spotify.service` runs, **Spotify Connect** via [go-librespot](https://github.com/devgianlu/go-librespot)
+(a static Go binary — `scripts/install-spotify.sh`; the phone discovers "Ambiance AmpliPi" on the LAN,
+Spotify Premium required). Exactly one source plays at a time: starting one makes the others yield —
+including a phone starting Spotify remotely. Because every source plays into the same `ch0` softvol,
+the announcement duck, the source volume and the siren's dominance apply to all of them automatically.
+Adding another service later (AirPlay, Bluetooth, ...) = implement the 5-method adapter + register it;
+the API, web UI and openHAB channel pick it up dynamically.
 
 ## Install
 
@@ -49,7 +61,7 @@ systemctl --user enable --now ambiance-mpd ambiance ambiance-display
 
 ## REST API
 
-`GET /` — web UI · `GET /api/status` · `GET /api/events` (SSE) · `POST /api/radio` `{station}` / `/api/radio/{play,stop,next,prev}` · `GET/POST /api/stations`, `PATCH/DELETE /api/stations/{name}`, `POST /api/stations/{name}/default` · `PATCH /api/zones/{id}` `{vol,mute,power}` · `PATCH /api/zones` (master) · `POST /api/announce` `{url}` · `POST /api/alarm` `{on}` · `GET /api/alarm/selftest` · `GET /api/cover`.
+`GET /` — web UI · `GET /api/status` · `GET /api/events` (SSE) · `POST /api/radio` `{station}` / `/api/radio/{play,stop,next,prev}` · `POST /api/source` `{name}` / `/api/source/{play,stop,next,prev}` (source-aware transport) · `GET/POST /api/stations`, `PATCH/DELETE /api/stations/{name}`, `POST /api/stations/{name}/default` · `PATCH /api/zones/{id}` `{vol,mute,power}` · `PATCH /api/zones` (master) · `POST /api/announce` `{url,vol?}` · `POST /api/alarm` `{on}` · `GET /api/alarm/selftest` · `GET /api/cover`.
 
 ## Reliability
 

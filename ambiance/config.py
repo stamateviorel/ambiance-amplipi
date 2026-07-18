@@ -61,5 +61,9 @@ class Config:
         self.duck_pct = int(os.environ.get("AMBIANCE_DUCK_PCT", "45"))
         self.mpd_host = os.environ.get("AMBIANCE_MPD_HOST", "127.0.0.1")
         self.mpd_port = int(os.environ.get("AMBIANCE_MPD_PORT", "6600"))
+        # Spotify Connect source (go-librespot in ambiance-spotify.service). Enabled by
+        # default: with the daemon absent it is simply reported not-running (inert).
+        self.spotify = os.environ.get("AMBIANCE_SPOTIFY", "1") == "1"
+        self.spotify_api = os.environ.get("AMBIANCE_SPOTIFY_API", "http://127.0.0.1:3678")
         self.port = int(os.environ.get("AMBIANCE_PORT", "8080"))
         self.health_interval = int(os.environ.get("AMBIANCE_HEALTH_INTERVAL", "15"))

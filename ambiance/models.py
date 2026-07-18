@@ -45,6 +45,20 @@ class SleepState(BaseModel):
     remaining_s: int = 0
 
 
+class SpotifyState(BaseModel):
+    running: bool = False     # go-librespot daemon reachable
+    playing: bool = False
+    track: str = ""
+    artist: str = ""
+    album: str = ""
+    cover: str = ""           # album art URL (fetched+served via /api/cover)
+
+
+class SourceState(BaseModel):
+    active: str = "radio"             # which source owns the audio path
+    available: List[str] = ["radio"]  # registered sources (extensible)
+
+
 class Status(BaseModel):
     zones: List[Zone]
     radio: RadioState
@@ -54,6 +68,8 @@ class Status(BaseModel):
     health: Health = Health()
     groups: List[Group] = []
     sleep: SleepState = SleepState()
+    source: SourceState = SourceState()
+    spotify: SpotifyState = SpotifyState()
 
 
 class Station(BaseModel):
@@ -89,6 +105,10 @@ class SleepUpdate(BaseModel):
 
 class StationSelect(BaseModel):
     station: str
+
+
+class SourceSelect(BaseModel):
+    name: str      # one of Status.source.available
 
 
 class StationEdit(BaseModel):
