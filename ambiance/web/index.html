@@ -181,8 +181,9 @@ function zVol(id,v){ patch('/api/zones/'+id, {vol:+v}); }
 
 function renderStations(list, cur){
   const sel = document.getElementById('stations');
-  if (sel.dataset.n != list.length){ sel.dataset.n = list.length;
-    sel.innerHTML = list.map(n=>`<option>${n}</option>`).join(''); }
+  const key = list.join('');            // content-keyed: a RENAME re-renders too
+  if (sel.dataset.k !== key){ sel.dataset.k = key;
+    sel.innerHTML = list.map(n=>`<option>${esc(n)}</option>`).join(''); }
   if (cur) sel.value = cur;
 }
 function renderZones(zones){
@@ -190,7 +191,7 @@ function renderZones(zones){
   el.innerHTML = zones.map(z=>{
     const silent = z.mute || !z.power;
     return `<div class="zone">
-      <div class="zname" style="opacity:${silent?.5:1}">${z.name}</div>
+      <div class="zname" style="opacity:${silent?.5:1}">${esc(z.name)}</div>
       <div class="zctl">
         <span class="pill ${z.power?'on':''}" onclick="zPower(${z.id},${!z.power})">${z.power?'Aan':'Uit'}</span>
         <span class="pill ${z.mute?'muted':''}" onclick="zMute(${z.id},${!z.mute})">${z.mute?'Gedempt':'Dempen'}</span>
