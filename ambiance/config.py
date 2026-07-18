@@ -39,10 +39,9 @@ def _load_groups(path):
     return groups
 
 
-# Reference deployment defaults (this site). A shareable install overrides via env + files.
-_DEFAULT_ZONES = [{"id": i, "name": n, "default_pct": p} for i, (n, p) in enumerate(
-    [("Office", 70), ("Wc up", 59), ("Main area", 80),
-     ("Kitchen", 70), ("Wc down", 60), ("Showroom", 39)])]
+# Generic fallback, used ONLY when zones.conf is missing/empty. Real installs name their
+# zones in config/zones.conf (this repo ships an example) — no site data lives in code.
+_DEFAULT_ZONES = [{"id": i, "name": "Zone %d" % (i + 1), "default_pct": 50} for i in range(6)]
 
 
 class Config:

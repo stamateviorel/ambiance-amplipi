@@ -37,14 +37,11 @@ def font(sz, bold=True):
 
 def get_state():
     if TEST:
-        return {"station": "VRT Studio Brussel", "playing": True, "title": "Coldplay - Yellow",
+        return {"station": "Demo FM", "playing": True, "title": "Coldplay - Yellow",
                 "siren": False,
-                "zones": [{"id": 0, "name": "Office", "vol": 70, "mute": False, "power": True},
-                          {"id": 1, "name": "Wc up", "vol": 59, "mute": True, "power": True},
-                          {"id": 2, "name": "Main area", "vol": 80, "mute": False, "power": True},
-                          {"id": 3, "name": "Kitchen", "vol": 70, "mute": False, "power": True},
-                          {"id": 4, "name": "Wc down", "vol": 60, "mute": False, "power": False},
-                          {"id": 5, "name": "Showroom", "vol": 39, "mute": False, "power": True}]}
+                "zones": [{"id": i, "name": "Zone %d" % (i + 1), "vol": v,
+                           "mute": i == 1, "power": i != 4}
+                          for i, v in enumerate((70, 59, 80, 70, 60, 39))]}
     try:
         d = json.loads(urllib.request.urlopen(API + "/api/status", timeout=4).read())
         r = d.get("radio", {})

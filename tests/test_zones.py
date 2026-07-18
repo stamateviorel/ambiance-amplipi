@@ -111,6 +111,31 @@ class _Rec:
         self.last_mutes = list(a)
 
 
+class TestPartialZoneCount(unittest.TestCase):
+    """A zones.conf with fewer than 6 zones must work — the preamp layer asserts whole
+    boards (multiples of 6); zones beyond the configured count are padded MUTED."""
+
+    FOUR = [{"id": i, "name": "Zone %d" % (i + 1), "default_pct": 50} for i in range(4)]
+
+    def test_four_zone_config_initialises(self):
+        z = Zones(self.FOUR, hw="mock")        # Mock() itself asserts the padded shapes
+        self.assertEqual(len(z.snapshot()), 4)
+
+    def test_padding_is_muted(self):
+        z = Zones(self.FOUR, hw="mock")
+        z.rt = _Rec()
+        z.set_mute(0, True)
+        self.assertEqual(len(z.rt.last_mutes), 6)
+        self.assertEqual(z.rt.last_mutes[4:], [True, True])    # absent zones stay silent
+
+    def test_padding_stays_muted_during_siren(self):
+        z = Zones(self.FOUR, hw="mock")
+        z.rt = _Rec()
+        z.siren(True)
+        self.assertEqual(z.rt.last_mutes[:4], [False] * 4)     # real zones blast
+        self.assertEqual(z.rt.last_mutes[4:], [True, True])    # absent outputs never open
+
+
 class TestSirenLock(unittest.TestCase):
     def setUp(self):
         self.z = Zones(ZONES, hw="mock")

@@ -43,9 +43,16 @@ class Zones:
     def _eff(self):
         return [self.muted[z] or (not self.power[z]) for z in range(self.n)]
 
+    @staticmethod
+    def _pad6(lst, fill):
+        """Pad a per-zone list to a whole preamp board (multiple of 6) — the hardware
+        layer asserts that. Zones beyond the configured count stay muted/source-0, so a
+        4-zone zones.conf works instead of crashing at startup."""
+        return lst + [fill] * ((-len(lst)) % 6)
+
     def _apply_all(self):
-        self.rt.update_zone_sources(0, [0] * self.n)      # everything on source 0
-        self.rt.update_zone_mutes(0, self._eff())
+        self.rt.update_zone_sources(0, self._pad6([0] * self.n, 0))  # everything on source 0
+        self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
         for z in range(self.n):
             self.rt.update_zone_vol(z, pct_to_db(self.vol[z]))
 
@@ -63,7 +70,7 @@ class Zones:
                 return
             self.muted[z] = bool(on)
             if not self._siren:                          # can't mute a zone while the siren blasts
-                self.rt.update_zone_mutes(0, self._eff())
+                self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
 
     def set_power(self, z, on):
         with self.lock:
@@ -71,7 +78,7 @@ class Zones:
                 return
             self.power[z] = bool(on)
             if not self._siren:                          # can't power a zone down while the siren blasts
-                self.rt.update_zone_mutes(0, self._eff())
+                self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
 
     def set_master_mute(self, on):
         for z in range(self.n):
@@ -81,13 +88,13 @@ class Zones:
         with self.lock:
             if on:
                 self._siren = True                            # lock: set_* now update state only
-                self.rt.update_zone_mutes(0, [False] * self.n)   # every zone audible
+                self.rt.update_zone_mutes(0, self._pad6([False] * self.n, True))  # every REAL zone audible
                 for z in range(self.n):
                     self.rt.update_zone_vol(z, MAX_DB)        # full blast, all zones
             else:
                 self._siren = False                           # unlock
                 # apply the logical state (which reflects anything commanded during the siren)
-                self.rt.update_zone_mutes(0, self._eff())
+                self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
                 for z in range(self.n):
                     self.rt.update_zone_vol(z, pct_to_db(self.vol[z]))
 
@@ -96,7 +103,7 @@ class Zones:
         an out-of-band write can't leave the siren quiet. No-op when the siren is off."""
         with self.lock:
             if self._siren:
-                self.rt.update_zone_mutes(0, [False] * self.n)
+                self.rt.update_zone_mutes(0, self._pad6([False] * self.n, True))
                 for z in range(self.n):
                     self.rt.update_zone_vol(z, MAX_DB)
 
