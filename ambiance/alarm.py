@@ -13,13 +13,16 @@ import wave
 
 
 class Siren:
-    def __init__(self, alarm_wav, dev="ch0boost", dry=False):
+    def __init__(self, alarm_wav, dev="ch0boost", dry=False, on_loop=None):
         self.alarm = alarm_wav
         self.dev = dev
         self.dry = dry
         self.on_flag = False
         self.proc = None
         self.lock = threading.Lock()
+        # called at the top of every loop iteration — re-asserts zones-full + boost-100%
+        # so nothing can leave the siren quiet mid-alarm (belt to the zone lock).
+        self.on_loop = on_loop or (lambda: None)
 
     @property
     def active(self):
@@ -44,6 +47,10 @@ class Siren:
 
     def _loop(self):
         while self.on_flag:
+            try:
+                self.on_loop()       # re-assert zones-full + boost each iteration (watchdog belt)
+            except Exception:
+                pass
             if self.dry:
                 print("DRY: aplay loop %s -> %s" % (self.alarm, self.dev))
                 time.sleep(1)

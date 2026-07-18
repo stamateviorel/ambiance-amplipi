@@ -1,7 +1,7 @@
 """Zones logic (Mock hardware — no I2C)."""
 import unittest
 
-from ambiance.hardware.zones import Zones, pct_to_db, db_to_pct
+from ambiance.hardware.zones import Zones, pct_to_db, db_to_pct, MAX_DB
 
 # AmpliPi hardware is 6 zones per board, and the preamp layer asserts multiples of 6.
 ZONES = [{"id": i, "name": n, "default_pct": p} for i, (n, p) in enumerate(
@@ -68,6 +68,71 @@ class TestZones(unittest.TestCase):
         self.z.siren(False)
         self.assertFalse(self.z.siren_active)
         self.assertEqual(self.z.snapshot(), before)         # restored exactly
+
+
+class _Rec:
+    """Records what actually reaches the preamp — proves the siren lock."""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.vol_calls = 0
+        self.mute_calls = 0
+        self.last_vol = {}
+        self.last_mutes = None
+
+    def update_zone_sources(self, s, a):
+        pass
+
+    def update_zone_vol(self, z, db):
+        self.vol_calls += 1
+        self.last_vol[z] = db
+
+    def update_zone_mutes(self, s, a):
+        self.mute_calls += 1
+        self.last_mutes = list(a)
+
+
+class TestSirenLock(unittest.TestCase):
+    def setUp(self):
+        self.z = Zones(ZONES, hw="mock")
+        self.z.rt = _Rec()                     # swap in the recorder after init
+
+    def test_no_command_can_quiet_the_siren(self):
+        self.z.siren(True)
+        self.z.rt.reset()
+        self.z.set_vol(0, 0)                   # every way to "quiet it" mid-alarm
+        self.z.set_mute(1, True)
+        self.z.set_power(2, False)
+        self.z.set_master_mute(True)
+        self.assertEqual(self.z.vol[0], 0)     # remembered for later restore...
+        self.assertTrue(self.z.muted[1])
+        self.assertFalse(self.z.power[2])
+        self.assertEqual(self.z.rt.vol_calls, 0)   # ...but nothing reached the preamp
+        self.assertEqual(self.z.rt.mute_calls, 0)
+
+    def test_siren_drives_every_zone_full(self):
+        self.z.rt.reset()
+        self.z.siren(True)
+        self.assertEqual(set(self.z.rt.last_vol.values()), {MAX_DB})   # all MAX
+        self.assertEqual(self.z.rt.last_mutes, [False] * 6)            # all audible
+
+    def test_reassert_redrives_full(self):
+        self.z.siren(True)
+        self.z.set_power(3, False)
+        self.z.rt.reset()
+        self.z.reassert_siren()
+        self.assertEqual(set(self.z.rt.last_vol.values()), {MAX_DB})
+        self.assertEqual(self.z.rt.last_mutes, [False] * 6)
+
+    def test_release_applies_commands_made_during_siren(self):
+        self.z.siren(True)
+        self.z.set_power(3, False)             # commanded off mid-alarm
+        self.z.rt.reset()
+        self.z.siren(False)
+        self.assertFalse(self.z.siren_active)
+        self.assertTrue(self.z.rt.last_mutes[3])    # zone 3 silenced on release
+        self.assertFalse(self.z.rt.last_mutes[0])   # zone 0 audible
 
 
 if __name__ == "__main__":

@@ -11,10 +11,13 @@ import threading
 
 
 class Radio:
-    def __init__(self, stations_file, mpd_host="127.0.0.1", mpd_port=6600):
+    def __init__(self, stations_file, mpd_host="127.0.0.1", mpd_port=6600, is_blocked=None):
         self.file = stations_file
         self.mpc_base = ["mpc", "-h", mpd_host, "-p", str(mpd_port)]
         self.lock = threading.Lock()
+        # while this returns True (the burglar siren owns the audio path) playback is
+        # suppressed, so nothing restarts the radio over the alarm.
+        self.is_blocked = is_blocked or (lambda: False)
         self.stations = self._load()
         # Intended play-state: the health monitor self-heals only a DROPPED stream we meant
         # to be playing — never an intentional stop (e.g. music-follows-you going away).
@@ -185,6 +188,8 @@ class Radio:
         return "[playing]" in self._mpc("status")
 
     def play_station(self, name):
+        if self.is_blocked():          # siren owns the audio path
+            return False
         for s in self.stations:
             if s["name"] == name:
                 self._mpc("clear")
@@ -197,6 +202,8 @@ class Radio:
         return False
 
     def play(self):
+        if self.is_blocked():          # siren owns the audio path
+            return
         self.desired_playing = True
         if not self._mpc("playlist").strip() and self.current_name:
             # empty playlist (nothing loaded, e.g. after a service restart) -> restore

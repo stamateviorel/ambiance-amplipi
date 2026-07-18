@@ -34,8 +34,11 @@ class Controller:
     def __init__(self, cfg):
         self.cfg = cfg
         self.zones = Zones(cfg.zones, hw=cfg.hw)
-        self.radio = Radio(cfg.stations_file, cfg.mpd_host, cfg.mpd_port)
-        self.siren = Siren(cfg.alarm_wav, dev=cfg.announce_dev, dry=cfg.dry)
+        self.radio = Radio(cfg.stations_file, cfg.mpd_host, cfg.mpd_port,
+                           is_blocked=lambda: self.siren.active)      # no radio over the alarm
+        self.boost = Source(ctl="Ch0 Boost", dry=cfg.dry)            # ch0boost softvol, forced full during the alarm
+        self.siren = Siren(cfg.alarm_wav, dev=cfg.announce_dev, dry=cfg.dry,
+                           on_loop=self._siren_reassert)             # re-assert full each wav loop
         self.announcer = Announcer(dev=cfg.announce_dev, vol_ctl=cfg.vol_ctl,
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
                                    is_busy=lambda: self.siren.active)
@@ -85,16 +88,23 @@ class Controller:
                     self.zones.set_power(i, power)
         return True
 
+    def _siren_reassert(self):
+        # watchdog belt (called each wav loop): keep every zone full/unmuted and the boost
+        # channel at 100% no matter what else tried to change them mid-alarm.
+        self.zones.reassert_siren()
+        self.boost.set_vol(100)
+
     def alarm(self, on):
         # safety-critical: independent of mpd — fires even if the radio player is dead
         if on:
             self.radio.stop()
-            self.zones.siren(True)
-            self.siren.on()
+            self.boost.set_vol(100)      # alarm channel full up-front
+            self.zones.siren(True)       # lock all zones full/unmuted/on (commands can't quiet it)
+            self.siren.on()              # loop alarm.wav on ch0boost (re-asserts each loop)
         else:
             self.siren.off()
-            self.zones.siren(False)
-            self.radio.play()
+            self.zones.siren(False)      # unlock + restore the logical zone state
+            self.radio.play()            # siren no longer active -> radio resumes
 
 
 cfg = Config()
