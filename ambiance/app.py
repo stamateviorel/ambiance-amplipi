@@ -26,6 +26,7 @@ from .health import HealthMonitor
 from .radio import Radio
 from .sleep import Sleep
 from .source import Source
+from .system import System
 from .hardware.zones import Zones
 
 
@@ -40,6 +41,7 @@ class Controller:
                                    is_busy=lambda: self.siren.active)
         self.cover = Cover()
         self.source = Source(ctl=cfg.vol_ctl, dry=cfg.dry)   # source (Ch0) volume, independent of zones
+        self.system = System(dry=cfg.dry)                    # stats + reboot/shutdown for the settings page
         self.groups = getattr(cfg, "groups", [])
         self.sleep = Sleep(on_fire=self.radio.stop)
         self.monitor = HealthMonitor(self, getattr(cfg, "health_interval", 15))
@@ -257,6 +259,24 @@ def cover():
     if data:
         return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
     return Response(status_code=204)
+
+
+# ---- system (settings page): stats + power ----
+@app.get("/api/system")
+def system_stats():
+    return ctl.system.stats()
+
+
+@app.post("/api/system/reboot", response_model=models.ApiResult)
+def system_reboot():
+    ok = ctl.system.reboot()
+    return {"ok": ok, "error": None if ok else "dry-run: no live hardware"}
+
+
+@app.post("/api/system/shutdown", response_model=models.ApiResult)
+def system_shutdown():
+    ok = ctl.system.shutdown()
+    return {"ok": ok, "error": None if ok else "dry-run: no live hardware"}
 
 
 @app.on_event("startup")
