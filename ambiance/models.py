@@ -59,6 +59,12 @@ class SourceState(BaseModel):
     available: List[str] = ["radio"]  # registered sources (extensible)
 
 
+class AnnounceState(BaseModel):
+    queued: int = 0                   # announcements waiting in the FIFO (not yet playing)
+    playing: bool = False             # an announcement is on air right now
+    vol: Optional[int] = None         # default boost level for announcements (None = untouched)
+
+
 class Status(BaseModel):
     zones: List[Zone]
     radio: RadioState
@@ -70,6 +76,7 @@ class Status(BaseModel):
     sleep: SleepState = SleepState()
     source: SourceState = SourceState()
     spotify: SpotifyState = SpotifyState()
+    announce: AnnounceState = AnnounceState()
 
 
 class Station(BaseModel):
@@ -129,6 +136,10 @@ class StationEdit(BaseModel):
 class Announcement(BaseModel):
     url: str
     vol: Optional[int] = None
+
+
+class AnnounceConfig(BaseModel):
+    vol: Optional[int] = None   # set the default announcement volume (0..100); null clears it
 
 
 class AlarmState(BaseModel):

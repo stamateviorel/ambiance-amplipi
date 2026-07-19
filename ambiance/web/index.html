@@ -84,6 +84,14 @@
     <input type="range" min="0" max="100" id="mvol" oninput="mv(this.value)" onchange="mvCommit(this.value)">
   </div>
 
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <span class="lbl" style="margin:0">Omroep — volume <span id="annq" style="text-transform:none;color:var(--accent);font-weight:700"></span></span>
+      <button id="annclear" class="pill" style="display:none" onclick="clearAnnounce()">Wachtrij wissen</button>
+    </div>
+    <input type="range" min="0" max="100" id="annvol" oninput="annDrag=true" onchange="annDrag=false; avCommit(this.value)">
+  </div>
+
   <div class="card" id="groupscard" style="display:none">
     <div class="row" style="justify-content:space-between">
       <span class="lbl" style="margin:0">Groepen</span>
@@ -136,12 +144,13 @@
 </div>
 
 <script>
-let ST = null, dragging = false;
+let ST = null, dragging = false, annDrag = false;
 async function get(u){ const r = await fetch(u); return r.ok ? r.json() : null; }
 async function post(u, body){ await fetch(u, {method:'POST', headers:{'Content-Type':'application/json'},
     body: body?JSON.stringify(body):null}); setTimeout(refresh, 250); }
 async function patch(u, body){ await fetch(u, {method:'PATCH', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body)}); }
+async function del(u){ await fetch(u, {method:'DELETE'}); setTimeout(refresh, 250); }
 
 function spotActive(d){ return d && d.source && d.source.active==='spotify' && d.spotify && d.spotify.running; }
 function isPlaying(d){ if(!d) return false; return spotActive(d) ? d.spotify.playing : (d.radio && d.radio.playing); }
@@ -274,6 +283,8 @@ function gDel(i){
   fetch('/api/groups/'+encodeURIComponent(g.name),{method:'DELETE'}).then(()=>setTimeout(refresh,300));
 }
 function setSleep(min){ post('/api/sleep', {minutes:min}); }
+function avCommit(v){ patch('/api/announce', {vol:Number(v)}).then(()=>setTimeout(refresh,250)); }
+function clearAnnounce(){ del('/api/announce'); }
 function apply(d){
   ST = d;
   const r = d.radio || {};
@@ -296,6 +307,10 @@ function apply(d){
   renderGroups(d.groups || []);
   const sl = d.sleep || {};
   document.getElementById('sleeprem').textContent = sl.active ? ('· ' + Math.ceil(sl.remaining_s/60) + ' min') : '';
+  const an = d.announce || {};
+  if (!annDrag) document.getElementById('annvol').value = (an.vol==null ? 100 : an.vol);
+  document.getElementById('annq').textContent = an.queued ? ('· ' + an.queued + ' in wachtrij') : '';
+  document.getElementById('annclear').style.display = an.queued ? '' : 'none';
   const h = d.health || {ok:true};
   const he = document.getElementById('health');
   he.textContent = h.ok ? 'ok' : (h.issues||[]).join('; ') || 'probleem';

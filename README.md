@@ -61,6 +61,7 @@ scripts/install-spotify.sh && systemctl --user enable --now ambiance-spotify
 | `AMBIANCE_VOL_CTL` | `Ch0` | the source softvol amixer control (master volume; ducked for announcements) |
 | `AMBIANCE_ANNOUNCE_DEV` | `ch0boost` | ALSA device announcements + the siren play on |
 | `AMBIANCE_DUCK_PCT` | `45` | source level (%) while an announcement plays |
+| `AMBIANCE_ANNOUNCE_VOL` | _(unset)_ | default announcement loudness (boost %, 0–100) for messages without their own `vol`; unset = leave the boost level untouched. Runtime-settable + persisted to `settings.conf` |
 | `AMBIANCE_MPD_HOST` / `AMBIANCE_MPD_PORT` | `127.0.0.1` / `6600` | where mpd listens |
 | `AMBIANCE_HEALTH_INTERVAL` | `15` | health sweep / self-heal interval (s) |
 | `AMBIANCE_ZONES` / `AMBIANCE_STATIONS` / `AMBIANCE_GROUPS` | `config/*.conf` | zones (`id\|name\|default_pct`; renameable from the web UI), stations (`name\|url\|logo?`, first = default), groups (`Name\|ids`) |
@@ -70,7 +71,7 @@ scripts/install-spotify.sh && systemctl --user enable --now ambiance-spotify
 
 ## REST API
 
-`GET /` — web UI · `GET /api/status` · `GET /api/events` (SSE) · `POST /api/radio` `{station}` / `/api/radio/{play,stop,next,prev}` · `POST /api/source` `{name}` / `/api/source/{play,stop,next,prev}` (source-aware transport) · `GET/POST /api/stations`, `PATCH/DELETE /api/stations/{name}`, `POST /api/stations/{name}/default` · `PATCH /api/zones/{id}` `{vol,mute,power,name}` (rename persists to zones.conf) · `PATCH /api/zones` (master) · group CRUD: `POST /api/groups` `{name,zones}`, `PATCH /api/groups/{name}` `{vol,mute,power,new_name?,zones?}`, `DELETE /api/groups/{name}` (edits persist to groups.conf) · `POST /api/announce` `{url,vol?}` · `POST /api/alarm` `{on}` · `GET /api/alarm/selftest` · `GET /api/cover`.
+`GET /` — web UI · `GET /api/status` · `GET /api/events` (SSE) · `POST /api/radio` `{station}` / `/api/radio/{play,stop,next,prev}` · `POST /api/source` `{name}` / `/api/source/{play,stop,next,prev}` (source-aware transport) · `GET/POST /api/stations`, `PATCH/DELETE /api/stations/{name}`, `POST /api/stations/{name}/default` · `PATCH /api/zones/{id}` `{vol,mute,power,name}` (rename persists to zones.conf) · `PATCH /api/zones` (master) · group CRUD: `POST /api/groups` `{name,zones}`, `PATCH /api/groups/{name}` `{vol,mute,power,new_name?,zones?}`, `DELETE /api/groups/{name}` (edits persist to groups.conf) · announcements (a bounded FIFO the box drains one at a time): `POST /api/announce` `{url,vol?}` (enqueue; `503` when full), `PATCH /api/announce` `{vol}` (set/clear the persisted default loudness), `DELETE /api/announce` (flush what's still queued) — the queue depth + default vol appear in `/api/status`'s `announce` object · `POST /api/alarm` `{on}` · `GET /api/alarm/selftest` · `GET /api/cover`.
 
 ## Reliability
 

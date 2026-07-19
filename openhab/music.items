@@ -35,6 +35,14 @@ String  Ambiance_Health           "Audio status [%s]"         (g_music_general) 
 // Sleep timer: minutes until the active source is silenced (command N to arm, 0 to cancel)
 Number  Ambiance_Sleep            "Slaaptimer [%d min]"       (g_music_general) ["Control"]  { channel="ambianceamplipi:controller:main:sleepTimer" }
 
+// Announcement queue — the box serializes a burst on its own bounded FIFO. Queue = backlog
+// depth (waiting, not yet playing); Volume = default omroep loudness (persisted on the box);
+// Clear = one-shot drop of everything still queued (the one on air finishes). No openHAB-side
+// queue rule needed — the appliance protects itself.
+Number  Ambiance_Announce_Queue   "Omroep wachtrij [%d]"        (g_music_general) ["Status"]   { channel="ambianceamplipi:controller:main:announceQueue" }
+Dimmer  Ambiance_Announce_Volume  "Omroep volume [%d %%]"       (g_music_general) ["Control","SoundVolume"] { channel="ambianceamplipi:controller:main:announceVolume" }
+Switch  Ambiance_Announce_Clear   "Omroep wachtrij wissen"      (g_music_general)              { channel="ambianceamplipi:controller:main:clearAnnouncements", expire="2s,command=OFF" }
+
 // Pi host diagnostics (slow poll — every 60 s)
 Number:Temperature Ambiance_Pi_Temperature "Ambiance Pi temperatuur [%.1f °C]" <temperature> (g_music_general) ["Measurement","Temperature"] { channel="ambianceamplipi:controller:main:temperature" }
 Number  Ambiance_Pi_Disk          "Ambiance Pi schijf [%d %%]" (g_music_general) ["Status"]  { channel="ambianceamplipi:controller:main:diskPercent" }

@@ -46,6 +46,18 @@ class TestConfigZones(unittest.TestCase):
         self.assertEqual(g[0], {"name": "Boven", "zones": [0, 1]})
         self.assertEqual(g[1]["zones"], [2, 3, 4])
 
+    def test_settings_roundtrip(self):
+        from ambiance.config import _load_settings, save_settings
+        path = self._write("# c\nannounce_vol=80\nfoo=bar\n")
+        self.assertEqual(_load_settings(path), {"announce_vol": "80", "foo": "bar"})
+        self.addCleanup(lambda: os.path.exists(path + ".bak") and os.remove(path + ".bak"))
+        self.assertTrue(save_settings(path, {"announce_vol": "35", "empty": ""}))
+        self.assertEqual(_load_settings(path), {"announce_vol": "35"})   # blank values dropped
+
+    def test_settings_missing_file(self):
+        from ambiance.config import _load_settings
+        self.assertEqual(_load_settings("/no/such/file"), {})
+
 
 class _FakeRadio:
     def __init__(self, healthy):

@@ -84,6 +84,48 @@ class TestAnnouncer(unittest.TestCase):
         time.sleep(0.1)
         self.assertEqual(boost.sets, [])
 
+    def test_default_vol_applies_when_message_omits_vol(self):
+        boost = _RecBoost(level=100)
+        a = Announcer(dry=True, boost=boost, default_vol=70)
+        self._recorded(a)
+        self.assertTrue(a.say(self.url))                          # no per-message vol
+        self.assertTrue(_wait(lambda: boost.sets == [70, 100]))   # default applied, then restored
+
+    def test_message_vol_overrides_default(self):
+        boost = _RecBoost(level=100)
+        a = Announcer(dry=True, boost=boost, default_vol=70)
+        self._recorded(a)
+        self.assertTrue(a.say(self.url, vol=25))                  # per-message wins over the default
+        self.assertTrue(_wait(lambda: boost.sets == [25, 100]))
+
+    def test_set_default_vol_clamps_and_clears(self):
+        a = Announcer(dry=True)
+        self.assertEqual(a.set_default_vol(150), 100)             # clamp high
+        self.assertEqual(a.set_default_vol(-5), 0)                # clamp low
+        self.assertIsNone(a.set_default_vol(None))               # None clears the override
+
+    def test_flush_drops_pending_and_is_idempotent(self):
+        import queue as q_
+        a = Announcer(dry=True)
+        held = q_.Queue(maxsize=20)                               # worker stays blocked on the OLD
+        for u in ("a", "b", "c"):                                 # queue -> these 3 stay put
+            held.put_nowait((u, None))
+        a.q = held
+        self.assertEqual(a.flush(), 3)                            # all pending dropped
+        self.assertEqual(a.q.qsize(), 0)
+        self.assertEqual(a.flush(), 0)                            # nothing left -> 0
+
+    def test_stats_reports_depth_and_vol(self):
+        import queue as q_
+        a = Announcer(dry=True, default_vol=60)
+        held = q_.Queue(maxsize=20)
+        held.put_nowait((self.url, None))
+        a.q = held                                               # worker blocked on the OLD queue
+        st = a.stats()
+        self.assertEqual(st["queued"], 1)
+        self.assertFalse(st["playing"])                          # nothing on air
+        self.assertEqual(st["vol"], 60)
+
     def test_fetch_failure_does_not_kill_worker(self):
         a = Announcer(dry=True)
         ran = self._recorded(a)

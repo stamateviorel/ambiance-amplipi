@@ -20,7 +20,7 @@ from sse_starlette.sse import EventSourceResponse
 from . import models
 from .announce import Announcer
 from .alarm import Siren
-from .config import Config, save_zones
+from .config import Config, save_settings, save_zones
 from .cover import Cover
 from .groups import Groups
 from .health import HealthMonitor
@@ -45,7 +45,8 @@ class Controller:
         self.announcer = Announcer(dev=cfg.announce_dev, vol_ctl=cfg.vol_ctl,
                                    duck_pct=cfg.duck_pct, dry=cfg.dry,
                                    is_busy=lambda: self.siren.active,
-                                   boost=self.boost)   # per-announcement volume on the boost channel
+                                   boost=self.boost,                      # boost channel = announce voice level
+                                   default_vol=getattr(cfg, "announce_vol", None))  # persisted default
         self.cover = Cover()
         self.source = Source(ctl=cfg.vol_ctl, dry=cfg.dry)   # source (Ch0) volume, independent of zones
         # ---- playback sources (extensible: register an adapter -> it appears everywhere) ----
@@ -76,7 +77,15 @@ class Controller:
             "sleep": self.sleep.state(),
             "source": self.sources.state(),
             "spotify": self.spotify.state(),
+            "announce": self.announcer.stats(),
         }
+
+    def set_announce_vol(self, pct):
+        """Set + persist the default announcement volume (boost level); None clears it."""
+        v = self.announcer.set_default_vol(pct)
+        self.cfg.settings["announce_vol"] = "" if v is None else str(v)
+        save_settings(self.cfg.settings_file, self.cfg.settings)
+        return v
 
     def _group_states(self):
         snap = {z["id"]: z for z in self.zones.snapshot()}
@@ -379,8 +388,22 @@ def sleep_set(s: models.SleepUpdate):
 # ---- announce + alarm + cover ----
 @app.post("/api/announce", response_model=models.ApiResult)
 def announce(a: models.Announcement):
-    ok = ctl.announcer.say(a.url, a.vol)   # optional per-announcement volume (boost channel)
-    return {"ok": ok, "error": None if ok else "queue full"}
+    # optional per-announcement volume (boost channel); the box's FIFO serializes a burst
+    if not ctl.announcer.say(a.url, a.vol):
+        raise HTTPException(status_code=503, detail="announce queue full")   # visible to callers
+    return {"ok": True, "error": None}
+
+
+@app.patch("/api/announce", response_model=models.Status)
+def announce_config(c: models.AnnounceConfig):
+    ctl.set_announce_vol(c.vol)   # 0..100 sets the default boost level; null clears the override
+    return ctl.status()
+
+
+@app.delete("/api/announce", response_model=models.ApiResult)
+def announce_flush():
+    n = ctl.announcer.flush()     # drop everything still waiting (the one on air finishes)
+    return {"ok": True, "error": None if n == 0 else "%d verwijderd" % n}
 
 
 @app.post("/api/alarm", response_model=models.Status)

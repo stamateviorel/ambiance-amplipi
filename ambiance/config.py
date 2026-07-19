@@ -84,6 +84,29 @@ def save_groups(path, groups):
     return _write_atomic(path, header + body)
 
 
+def _load_settings(path):
+    """Runtime-tunable scalars as `key=value` lines (announce volume, ...)."""
+    out = {}
+    try:
+        for line in open(path):
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return out
+
+
+def save_settings(path, settings):
+    """Atomically rewrite settings.conf (runtime scalars the box persists across reboots)."""
+    header = ("# ambiance-amplipi — settings.conf   (key=value runtime settings)\n"
+              "# Written by the box (web UI / openHAB); survives reboots.\n\n")
+    body = "".join("%s=%s\n" % (k, v) for k, v in sorted(settings.items()) if v != "")
+    return _write_atomic(path, header + body)
+
+
 # Generic fallback, used ONLY when zones.conf is missing/empty. Real installs name their
 # zones in config/zones.conf (this repo ships an example) — no site data lives in code.
 _DEFAULT_ZONES = [{"id": i, "name": "Zone %d" % (i + 1), "default_pct": 50} for i in range(6)]
@@ -111,3 +134,12 @@ class Config:
         self.spotify_api = os.environ.get("AMBIANCE_SPOTIFY_API", "http://127.0.0.1:3678")
         self.port = int(os.environ.get("AMBIANCE_PORT", "8080"))
         self.health_interval = int(os.environ.get("AMBIANCE_HEALTH_INTERVAL", "15"))
+        # runtime scalars the box owns + persists (announcement volume today). settings.conf
+        # wins over the env seed so a web-UI/openHAB change survives a restart.
+        self.settings_file = os.environ.get("AMBIANCE_SETTINGS", base + "/config/settings.conf")
+        self.settings = _load_settings(self.settings_file)
+        _av = self.settings.get("announce_vol", os.environ.get("AMBIANCE_ANNOUNCE_VOL"))
+        try:
+            self.announce_vol = None if _av in (None, "") else max(0, min(100, int(_av)))
+        except (TypeError, ValueError):
+            self.announce_vol = None

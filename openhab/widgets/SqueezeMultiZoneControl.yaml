@@ -260,6 +260,36 @@ slots:
                           title: Volume
                         slots:
                           default:
+                          - component: f7-row
+                            config:
+                              class: margin-bottom
+                            slots:
+                              default:
+                              - component: f7-col
+                                config:
+                                  class: justify-content-center
+                                  style:
+                                    width: 33%
+                                slots:
+                                  default:
+                                  - component: Label
+                                    config:
+                                      class: margin
+                                      text: '=Number(items.Ambiance_Announce_Queue.state) > 0 ? ''Omroep ('' + items.Ambiance_Announce_Queue.state + '')'' : ''Omroep'''
+                              - component: f7-col
+                                config:
+                                  class: display-flex justify-content-center align-items-center
+                                  style:
+                                    width: 66%
+                                slots:
+                                  default:
+                                  - component: oh-slider
+                                    config:
+                                      class: margin
+                                      item: Ambiance_Announce_Volume
+                                      label: true
+                                      releaseOnly: true
+                                      unit: '%'
                           - component: oh-repeater
                             config:
                               for: zitem
