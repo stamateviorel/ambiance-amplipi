@@ -24,6 +24,7 @@ class HealthMonitor:
     def __init__(self, ctl, interval=15):
         self.ctl = ctl
         self.interval = max(5, int(interval))
+        self._last_recoveries = 0
         self.state = {"ok": True, "issues": [], "mpd": "ok", "preamp": "ok",
                       "recoveries": 0, "checked": 0}
 
@@ -41,6 +42,19 @@ class HealthMonitor:
                 pass
 
         pre = preamp.preamp_health()
+
+        # A preamp I2C wedge self-heals in the low-level layer (reset + re-flush of its OWN register
+        # cache), but that can leave the hardware driven from a stale/incomplete cache — every zone
+        # silent (the siren too) while the logical state still says it is on, until a restart. On any
+        # NEW recovery, re-apply the routing from the authoritative zone state so audio self-recovers.
+        recoveries = pre.get("recoveries", 0)
+        if recoveries > self._last_recoveries:
+            self._last_recoveries = recoveries
+            try:
+                self.ctl.zones.reapply()
+                print("[health] preamp self-healed (recoveries=%d) -> re-applied zone routing" % recoveries)
+            except Exception as exc:
+                print("[health] reapply after preamp recovery failed: %s" % exc)
 
         issues = []
         if not mpd_ok:

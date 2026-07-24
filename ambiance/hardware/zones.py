@@ -50,11 +50,35 @@ class Zones:
         4-zone zones.conf works instead of crashing at startup."""
         return lst + [fill] * ((-len(lst)) % 6)
 
-    def _apply_all(self):
+    def _write_mutes_vols(self, siren):
+        """Write the audibility-critical registers (mutes + per-zone volume). siren=True forces
+        every zone audible at full volume; otherwise the logical mute/power/vol state."""
+        if siren:
+            self.rt.update_zone_mutes(0, self._pad6([False] * self.n, True))
+            for z in range(self.n):
+                self.rt.update_zone_vol(z, MAX_DB)
+        else:
+            self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
+            for z in range(self.n):
+                self.rt.update_zone_vol(z, pct_to_db(self.vol[z]))
+
+    def _write_routing(self, siren):
+        """Full re-drive: source assignment + mutes + volumes."""
         self.rt.update_zone_sources(0, self._pad6([0] * self.n, 0))  # everything on source 0
-        self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
-        for z in range(self.n):
-            self.rt.update_zone_vol(z, pct_to_db(self.vol[z]))
+        self._write_mutes_vols(siren)
+
+    def _apply_all(self):
+        self._write_routing(False)
+
+    def reapply(self):
+        """Re-drive the WHOLE preamp routing (sources+mutes+vols) from the authoritative logical
+        state. Called by the health watchdog after a preamp self-heal: an I2C wedge reset leaves the
+        hardware at silent defaults, and the low-level in-place recovery re-flushes only its OWN
+        register cache — which can be stale/incomplete — so a zone (and the burglar siren) can stay
+        silently dead while the code believes everything is fine. Re-applying from the zone state
+        recovers audio on its own instead of needing a service restart. Siren-aware."""
+        with self.lock:
+            self._write_routing(self._siren)
 
     def set_vol(self, z, pct):
         with self.lock:
@@ -86,26 +110,19 @@ class Zones:
 
     def siren(self, on):
         with self.lock:
-            if on:
-                self._siren = True                            # lock: set_* now update state only
-                self.rt.update_zone_mutes(0, self._pad6([False] * self.n, True))  # every REAL zone audible
-                for z in range(self.n):
-                    self.rt.update_zone_vol(z, MAX_DB)        # full blast, all zones
-            else:
-                self._siren = False                           # unlock
-                # apply the logical state (which reflects anything commanded during the siren)
-                self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
-                for z in range(self.n):
-                    self.rt.update_zone_vol(z, pct_to_db(self.vol[z]))
+            self._siren = bool(on)                            # lock: set_* now update state only
+            # Re-drive EVERYTHING (incl. the source assignment) so the siren survives a wedged or
+            # just-reset preamp; on release this applies the logical state (reflecting anything
+            # commanded during the alarm).
+            self._write_routing(self._siren)
 
     def reassert_siren(self):
-        """Re-drive the preamp to full/unmuted — a watchdog belt so even a preamp glitch or
-        an out-of-band write can't leave the siren quiet. No-op when the siren is off."""
+        """Re-drive the FULL preamp routing (source+mutes+vols) each siren loop — a watchdog belt so
+        even a preamp glitch, an out-of-band write, or a mid-alarm I2C wedge+reset can't leave the
+        siren quiet. No-op when the siren is off."""
         with self.lock:
             if self._siren:
-                self.rt.update_zone_mutes(0, self._pad6([False] * self.n, True))
-                for z in range(self.n):
-                    self.rt.update_zone_vol(z, MAX_DB)
+                self._write_routing(True)
 
     def rename(self, z, name):
         with self.lock:

@@ -247,13 +247,29 @@ class Radio:
         self.play_station(names[(i + delta) % len(names)])
 
     def ensure_default(self):
-        # boot-to-radio: empty playlist (cold start) -> resume the last station, else the first
-        if not self._mpc("playlist").strip() and self.stations:
-            names = [s["name"] for s in self.stations]
-            self.play_station(self.current_name if self.current_name in names else names[0])
+        # boot-to-radio: resume the last station (or the first). Record the play INTENT up-front and
+        # attempt it now, but rely on the health monitor to keep retrying until mpd is actually up and
+        # the stream is live. systemd's `After=ambiance-mpd` orders the unit start but NOT mpd's
+        # readiness, so the old one-shot play here raced mpd's startup — it failed silently AND left
+        # desired_playing False, so the monitor never retried and the radio came up silent. Setting the
+        # intent means the monitor self-heals the resume; dropping the empty-playlist guard also covers
+        # mpd coming back stopped-but-loaded. (Skip a re-play only if already on the right station.)
+        if not self.stations:
+            return
+        names = [s["name"] for s in self.stations]
+        target = self.current_name if self.current_name in names else names[0]
+        self.desired_playing = True
+        if not self.is_playing() or self.current_station() != target:
+            self.play_station(target)
 
     def state(self):
-        playing = self.is_playing()
+        # Show "playing" if we INTEND to play OR mpc currently says so. is_playing() alone
+        # ("[playing]" in `mpc status`) is noisy — it returns False whenever the mpc subprocess
+        # stalls/errors or the web stream briefly reconnects, which made the openHAB control channel
+        # flicker and stick at PAUSE while the radio was actually playing. desired_playing alone could
+        # miss audio that started outside a play() call. The OR is stable through stalls yet still
+        # reports PAUSE only when the radio is genuinely stopped; the health monitor heals a real drop.
+        playing = self.desired_playing or self.is_playing()
         # Blank the now-playing when stopped so the UI shows a name only while on air.
         np = self.now_playing() if playing else {"title": "", "artist": "", "track": ""}
         return {"playing": playing, "station": self.current_station(),
