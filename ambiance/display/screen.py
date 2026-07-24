@@ -22,6 +22,7 @@ import urllib.request
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 320, 240
+BG = (12, 12, 16)   # panel background; kept dark, but see fetch_cover() re: art ghosting
 API = os.environ.get("AMBIANCE_API", "http://127.0.0.1:8080")
 OUT = os.environ.get("RADIO_DISPLAY_OUT", "")
 TEST = os.environ.get("RADIO_TEST", "0") == "1"
@@ -62,7 +63,11 @@ def fetch_cover():
     try:
         with urllib.request.urlopen(API + "/api/cover", timeout=6) as r:
             if r.status == 200:
-                return Image.open(io.BytesIO(r.read())).convert("RGB").resize((116, 116))
+                art = Image.open(io.BytesIO(r.read())).convert("RGB").resize((116, 116))
+                # The cheap TFT ghosts bright art sideways across its rows into the dark
+                # background (visible as a colour wash left of the cover). Damping the art
+                # toward the background cuts that horizontal bleed; art stays clearly visible.
+                return Image.blend(art, Image.new("RGB", (116, 116), BG), 0.30)
     except Exception:
         pass
     return None
@@ -83,8 +88,17 @@ def _wrap(draw, text, fnt, maxw, maxlines):
     return lines[:maxlines]
 
 
+def _fit(draw, text, fnt, maxw):
+    """Trim a label to maxw px, adding an ellipsis only if it genuinely overflows."""
+    if draw.textlength(text, font=fnt) <= maxw:
+        return text
+    while text and draw.textlength(text + "…", font=fnt) > maxw:
+        text = text[:-1]
+    return text + "…" if text else text
+
+
 def render(st, art):
-    img = Image.new("RGB", (W, H), (12, 12, 16))
+    img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, W, 30], fill=(20, 26, 40))
     d.text((10, 5), (st.get("station") or "— geen zender —")[:24], font=font(19), fill=(150, 200, 255))
@@ -99,11 +113,12 @@ def render(st, art):
     for ln in _wrap(d, title or "—", font(17), tw, 4):
         d.text((10, y), ln, font=font(17), fill=(235, 235, 235)); y += 22
     d.line([0, 166, W, 166], fill=(40, 40, 50))
+    f11 = font(11)
     for i, z in enumerate(st.get("zones", [])[:6]):
         col, row = i % 3, i // 3
         x, yy = 8 + col * 104, 172 + row * 30
         silent = z.get("mute") or (not z.get("power", True))     # effective silence
-        d.text((x, yy), z["name"][:9], font=font(11), fill=(110, 110, 120) if silent else (200, 200, 210))
+        d.text((x, yy), _fit(d, z["name"], f11, 94), font=f11, fill=(110, 110, 120) if silent else (200, 200, 210))
         d.rectangle([x, yy + 15, x + 94, yy + 21], outline=(50, 50, 60))
         fillw = int(94 * z.get("vol", 0) / 100)
         d.rectangle([x, yy + 15, x + fillw, yy + 21], fill=(70, 70, 80) if silent else (70, 150, 220))
