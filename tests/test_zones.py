@@ -183,6 +183,35 @@ class TestSirenLock(unittest.TestCase):
         self.assertTrue(self.z.rt.last_mutes[3])    # zone 3 silenced on release
         self.assertFalse(self.z.rt.last_mutes[0])   # zone 0 audible
 
+class TestZonePowerPersistence(unittest.TestCase):
+    """Zone power survives a restart: restored from persisted state, saved on change."""
+
+    DEFS = [{"id": i, "name": "Z%d" % i, "default_pct": 50} for i in range(6)]
+
+    def test_restores_persisted_power(self):
+        z = Zones(self.DEFS, power=[False, False, False, True, False, False])
+        self.assertEqual(z.power, [False, False, False, True, False, False])
+
+    def test_defaults_all_on_when_unknown(self):
+        self.assertEqual(Zones(self.DEFS).power, [True] * 6)          # first run
+        self.assertEqual(Zones(self.DEFS, power=[True, False]).power, [True] * 6)  # wrong length -> ignored
+
+    def test_persists_on_change_only(self):
+        saved = []
+        z = Zones(self.DEFS, power=[True] * 6, on_power_change=lambda p: saved.append(list(p)))
+        z.set_power(2, False)
+        self.assertEqual(saved[-1][2], False)      # change persisted
+        n = len(saved)
+        z.set_power(2, False)                      # same value again
+        self.assertEqual(len(saved), n)            # no redundant write
+
+    def test_siren_forced_state_is_not_persisted(self):
+        saved = []
+        z = Zones(self.DEFS, power=[False] * 6, on_power_change=lambda p: saved.append(list(p)))
+        z.siren(True)
+        z.set_power(0, True)                       # siren holds zones open; not the user's intent
+        self.assertEqual(saved, [])
+
 
 if __name__ == "__main__":
     unittest.main()

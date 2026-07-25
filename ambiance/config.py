@@ -143,3 +143,9 @@ class Config:
             self.announce_vol = None if _av in (None, "") else max(0, min(100, int(_av)))
         except (TypeError, ValueError):
             self.announce_vol = None
+        # Which zones were on before the last stop (see Controller._save_zone_power). None =
+        # unknown/first run -> the hardware layer falls back to all-on.
+        _zp = self.settings.get("zone_power", "")
+        self.zone_power = [c == "1" for c in _zp.split(",")] if _zp else None
+        if self.zone_power is not None and len(self.zone_power) != len(self.zones):
+            self.zone_power = None      # zone count changed -> ignore the stale state

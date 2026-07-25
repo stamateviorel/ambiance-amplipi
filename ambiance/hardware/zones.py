@@ -26,14 +26,18 @@ def db_to_pct(db):
 
 
 class Zones:
-    def __init__(self, zone_defs, hw="mock"):
+    def __init__(self, zone_defs, hw="mock", power=None, on_power_change=None):
         # zone_defs: list of {"id", "name", "default_pct"} — driven by declarative config
         self.lock = threading.RLock()
         self.n = len(zone_defs)
         self.names = [z["name"] for z in zone_defs]
         self.vol = [int(z.get("default_pct", 50)) for z in zone_defs]
         self.muted = [False] * self.n          # user mute (widget)
-        self.power = [True] * self.n           # zone power (motion: music-follows-you)
+        # Zone power (motion: music-follows-you). Restored from the persisted state when
+        # given, so a service restart does not silently switch every zone back ON and blast
+        # audio through the whole house; defaults to ON only on a first/unknown start.
+        self.power = list(power) if power and len(power) == self.n else [True] * self.n
+        self._on_power_change = on_power_change   # persist hook (set by the controller)
         self._siren = False                    # burglar siren active -> preamp locked at full
         # rt.Rpi() RESETS the preamps on construct — only pass hw="rpi" once amplipi.service
         # is stopped (i.e. at cutover). Default Mock is safe everywhere.
@@ -100,9 +104,17 @@ class Zones:
         with self.lock:
             if not 0 <= z < self.n:
                 return
+            changed = self.power[z] != bool(on)
             self.power[z] = bool(on)
             if not self._siren:                          # can't power a zone down while the siren blasts
                 self.rt.update_zone_mutes(0, self._pad6(self._eff(), True))
+        # persist OUTSIDE the lock, and only on a real change — the siren's forced-on state is
+        # never written (it is not the user's intent, just the alarm holding the zones open)
+        if changed and not self._siren and self._on_power_change:
+            try:
+                self._on_power_change(list(self.power))
+            except Exception as exc:
+                print("[zones] persisting power state failed: %s" % exc)
 
     def set_master_mute(self, on):
         for z in range(self.n):

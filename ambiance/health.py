@@ -14,9 +14,11 @@ Runs one lightweight sweep every `interval` seconds in a daemon thread:
 
 The cached `state` matches models.Health.
 """
+import os
 import threading
 import time
 
+from . import sdnotify
 from .hardware import preamp
 
 
@@ -79,9 +81,16 @@ class HealthMonitor:
         }
 
     def _run(self):
+        if sdnotify.watchdog_enabled():
+            print("[health] systemd watchdog armed (%ss) — pinging after each sweep"
+                  % (int(os.environ.get("WATCHDOG_USEC", 0)) // 1000000))
         while True:
             try:
                 self.state = self._sweep()
+                # Feed the systemd watchdog only after a COMPLETED sweep: if the sweep wedges
+                # (mpd/preamp hung), the pings stop and systemd restarts us. Restart=always
+                # alone cannot catch that — a hung process never exits.
+                sdnotify.notify("WATCHDOG=1")
             except Exception:
                 # never let the monitor thread die — a broken sweep must not take audio down
                 pass

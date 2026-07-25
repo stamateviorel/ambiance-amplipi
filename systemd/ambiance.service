@@ -17,6 +17,12 @@ EnvironmentFile=-/home/pi/ambiance-amplipi/config/ambiance.env
 ExecStart=/home/pi/ambiance-amplipi/venv/bin/python -m ambiance.asgi
 Restart=always
 RestartSec=3
+# Catch a HANG, not just a crash: Restart=always only fires when the process exits, so a
+# deadlocked service stays "active" while the house goes silent. The health monitor pings
+# the watchdog after each completed sweep (every ~15s, see health.py), so a wedged sweep
+# stops the pings and systemd kills + restarts us. 90s = 6 sweeps of margin.
+NotifyAccess=main
+WatchdogSec=90
 
 [Install]
 WantedBy=default.target

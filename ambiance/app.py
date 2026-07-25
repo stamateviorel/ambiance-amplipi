@@ -36,7 +36,9 @@ from .hardware.zones import Zones
 class Controller:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.zones = Zones(cfg.zones, hw=cfg.hw)
+        # restore the zone power state across restarts (see _save_zone_power)
+        self.zones = Zones(cfg.zones, hw=cfg.hw, power=cfg.zone_power,
+                           on_power_change=self._save_zone_power)
         self.radio = Radio(cfg.stations_file, cfg.mpd_host, cfg.mpd_port,
                            is_blocked=lambda: self.siren.active)      # no radio over the alarm
         self.boost = Source(ctl="Ch0 Boost", dry=cfg.dry)            # ch0boost softvol, forced full during the alarm
@@ -79,6 +81,12 @@ class Controller:
             "spotify": self.spotify.state(),
             "announce": self.announcer.stats(),
         }
+
+    def _save_zone_power(self, power):
+        """Persist which zones are on, so a restart resumes the room state instead of
+        switching everything ON (which blasts audio through the whole house)."""
+        self.cfg.settings["zone_power"] = ",".join("1" if p else "0" for p in power)
+        save_settings(self.cfg.settings_file, self.cfg.settings)
 
     def set_announce_vol(self, pct):
         """Set + persist the default announcement volume (boost level); None clears it."""
