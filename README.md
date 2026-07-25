@@ -44,8 +44,10 @@ Requires Python 3.7+ with `fastapi`, `uvicorn`, `pydantic` **v1**, `smbus2`, `py
 
 ```bash
 # from a checkout on the Pi
-cp -r ambiance config assets systemd scripts /home/pi/ambiance-amplipi/
+cp -r ambiance config assets systemd scripts packaging /home/pi/ambiance-amplipi/
 systemctl --user enable --now ambiance-mpd ambiance ambiance-display
+# persistent, bounded logs (the base image keeps the journal in RAM + loses it on reboot):
+scripts/setup-logging.sh
 # optional — Spotify Connect (fetches the go-librespot binary):
 scripts/install-spotify.sh && systemctl --user enable --now ambiance-spotify
 ```
