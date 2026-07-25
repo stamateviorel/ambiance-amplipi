@@ -1,0 +1,23 @@
+# Ambiance AmpliPi — rotate mpd's log.
+#
+# mpd is configured with its own log_file under the app dir, which Debian's stock
+# /etc/logrotate.d/mpd does NOT cover (that one only matches /var/log/mpd/*.log). Left alone
+# it grows without limit: every mpc invocation logs a client open+close, ~170 lines/minute
+# (~15 MB/day), and it had reached 123 MB on a root filesystem with under 2 GB free.
+#
+# Keep it: this file holds WHY a stream died (e.g. "CURL failed: server certificate
+# verification failed"), which nothing else records — so rotate it, don't silence it.
+# copytruncate: mpd holds the file open and has no logrotate reload hook.
+#
+# Install to /etc/logrotate.d/ambiance-mpd (scripts/setup-logging.sh does this).
+/home/pi/ambiance-amplipi/run/mpd.log {
+    daily
+    rotate 7
+    maxsize 20M
+    compress
+    missingok
+    notifempty
+    copytruncate
+    su pi pi
+    create 0644 pi pi
+}

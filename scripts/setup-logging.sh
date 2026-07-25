@@ -22,5 +22,14 @@ sudo systemctl restart systemd-journald
 sudo journalctl --flush
 sudo journalctl --vacuum-size=100M
 
+# mpd writes its own log under the app dir, which Debian's stock logrotate rule does not
+# cover (it only matches /var/log/mpd/*.log) — without this it grows unbounded.
+MPDROT="$BASE/packaging/logrotate.d/ambiance-mpd"
+if [ -f "$MPDROT" ]; then
+    echo "installing mpd logrotate rule -> /etc/logrotate.d/ambiance-mpd"
+    sudo install -D -m 0644 "$MPDROT" /etc/logrotate.d/ambiance-mpd
+    sudo logrotate --debug /etc/logrotate.d/ambiance-mpd >/dev/null && echo "   rule parses OK"
+fi
+
 echo "done. effective journald Storage (the drop-in overrides the base image):"
 grep -rniE "^\s*storage" /etc/systemd/journald.conf /etc/systemd/journald.conf.d/ 2>/dev/null || true
