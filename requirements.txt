@@ -1,0 +1,14 @@
+# ambiance-amplipi Python dependencies, pinned to the versions running on the appliance.
+# Target: Python 3.7 (Raspberry Pi OS Buster). These are the last versions that support
+# 3.7 for this stack — in particular pydantic MUST stay v1 (<2). Do not blind-upgrade.
+# Install into a venv: python3 -m venv venv && venv/bin/pip install -r requirements.txt
+fastapi==0.91.0
+uvicorn==0.20.0
+pydantic==1.10.4
+sse-starlette==0.10.3
+requests==2.31.0
+Pillow==9.4.0
+pyserial==3.5
+smbus2==0.4.2
+adafruit-blinka==6.10.2
+adafruit-circuitpython-rgb-display==3.11.0

@@ -52,6 +52,11 @@ scripts/setup-logging.sh
 scripts/install-spotify.sh && systemctl --user enable --now ambiance-spotify
 ```
 
+**Rebuilding after a dead Pi/SD, or building a new unit?** See **[RECOVERY.md](RECOVERY.md)**.
+`scripts/bootstrap.sh` does the whole install from a blank Raspberry Pi OS card in one shot (apt
+deps, Python venv from `requirements.txt`, ALSA routing, `/boot` overlays, services, persistent
+logs), and `scripts/backup-image.sh` makes gzip'd, restorable SD images.
+
 ## Configuration (declarative, env-driven — no mutable house state)
 
 | Variable | Default | Description |

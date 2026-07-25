@@ -1,0 +1,14 @@
+# Ambiance AmpliPi — hardware device-tree overlays.
+# Append to /boot/config.txt (Buster) or /boot/firmware/config.txt (Bookworm+), then
+# reboot. Enables the HiFiBerry-style I2S DAC, the AmpliPi preamp (I2C), and the ILI9341
+# status screen (secondary SPI). Captured verbatim from the working unit; scripts/
+# bootstrap.sh appends these automatically (idempotent — it skips if already present).
+dtparam=i2c_arm=on,i2c_arm_baudrate=100000
+dtparam=i2c_vc=on
+dtparam=i2s=on
+dtparam=spi=on
+dtoverlay=vc4-fkms-v3d
+dtoverlay=hifiberry-dac
+dtoverlay=i2s-gpio28-31
+dtoverlay=spi1-2cs
+dtoverlay=spi2-2cs
