@@ -32,14 +32,21 @@ class HealthMonitor:
         radio = self.ctl.radio
         mpd_ok, mpd_detail = radio.health()
 
-        # self-heal a genuine drop (intended-to-play stream that stopped/errored)
+        # self-heal a genuine drop (intended-to-play stream that stopped/errored).
+        # LOG it: this is the most common self-heal, and without a line here the box keeps
+        # no record of an outage it fixed itself (only openHAB's item history showed it).
         if radio.desired_playing and not mpd_ok:
+            print("[health] radio unhealthy (%s) -> recovering" % (mpd_detail or "onbekend"))
             try:
                 if radio.recover():
                     time.sleep(2)
                     mpd_ok, mpd_detail = radio.health()
-            except Exception:
-                pass
+                    print("[health] radio recovery %s" % ("OK" if mpd_ok else
+                                                          "FAILED (%s)" % (mpd_detail or "onbekend")))
+                else:
+                    print("[health] radio recovery could not issue a replay")
+            except Exception as exc:
+                print("[health] radio recovery raised: %s" % exc)
 
         pre = preamp.preamp_health()
 
