@@ -163,6 +163,7 @@ class Controller:
         for z in self.cfg.zones:
             if z["id"] == zid:
                 z["name"] = name
+        print("[config] zone %d renamed -> %r (persisted)" % (zid, name))
         save_zones(self.cfg.zones_file, self.cfg.zones)
         return True
 
@@ -390,6 +391,8 @@ def sleep_set(s: models.SleepUpdate):
 def announce(a: models.Announcement):
     # optional per-announcement volume (boost channel); the box's FIFO serializes a burst
     if not ctl.announcer.say(a.url, a.vol):
+        # a DROPPED announcement is silent to the listener — make sure it isn't silent in the log
+        print("[announce] QUEUE FULL -> dropped %s" % a.url)
         raise HTTPException(status_code=503, detail="announce queue full")   # visible to callers
     return {"ok": True, "error": None}
 
@@ -460,6 +463,12 @@ def system_shutdown():
 
 @app.on_event("startup")
 def _startup():
+    # Startup banner: fail-safe defaults mean a missing/edited config comes up in mock/dry
+    # mode — i.e. SILENT. Recording the effective mode here turns "why is there no sound?"
+    # into a one-line answer instead of a hunt.
+    print("[boot] ambiance up: zones=%d hw=%s dry=%s spotify=%s announce_vol=%s" % (
+        ctl.zones.n, cfg.hw, cfg.dry, "spotify" in ctl.sources.available,
+        ctl.announcer.default_vol))
     ctl.monitor.start()   # background health sweeps + dropped-stream self-heal
     if "spotify" in ctl.sources.available:
         ctl.spotify.start()   # poll go-librespot: state cache + phone-started-playback events

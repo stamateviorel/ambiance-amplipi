@@ -31,12 +31,15 @@ class Siren:
     def on(self):
         with self.lock:
             if not self.on_flag:
+                # security-relevant: always record when the siren starts/stops
+                print("[alarm] SIREN ON")
                 self.on_flag = True
                 threading.Thread(target=self._loop, daemon=True).start()
 
     def off(self):
         with self.lock:
             if self.on_flag:
+                print("[alarm] SIREN OFF")
                 self.on_flag = False
                 p = self.proc
                 if p is not None:

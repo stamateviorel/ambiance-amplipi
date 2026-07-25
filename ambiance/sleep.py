@@ -41,10 +41,11 @@ class Sleep:
         with self._lock:
             self._timer = None
             self._ends_at = None
+        print("[sleep] timer fired -> silencing playback")   # audio stopping on its own
         try:
             self._on_fire()
-        except Exception:
-            pass
+        except Exception as exc:
+            print("[sleep] on_fire failed: %s" % exc)
 
     def state(self):
         ends = self._ends_at

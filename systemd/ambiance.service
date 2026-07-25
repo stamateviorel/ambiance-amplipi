@@ -9,6 +9,10 @@ Wants=ambiance-mpd.service
 [Service]
 Type=simple
 WorkingDirectory=/home/pi/ambiance-amplipi
+# Unbuffered stdout: journald is a pipe, so Python block-buffers print() — self-heal,
+# siren and announce log lines would sit in the buffer for ages (or be lost on a hard
+# kill) instead of appearing when they happen.
+Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-/home/pi/ambiance-amplipi/config/ambiance.env
 ExecStart=/home/pi/ambiance-amplipi/venv/bin/python -m ambiance.asgi
 Restart=always
