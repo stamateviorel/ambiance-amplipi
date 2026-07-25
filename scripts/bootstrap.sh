@@ -1,8 +1,10 @@
 #!/bin/bash
-# ambiance-amplipi — bare-metal bootstrap. Rebuilds the appliance from a FRESH Raspberry Pi
-# OS (32-bit; the unit was built on Buster / Python 3.7) on a Pi 3 with the HiFiBerry-style
-# I2S DAC + the AmpliPi 6-zone preamp (I2C) + an ILI9341 screen on the secondary SPI bus.
+# ambiance-amplipi — bare-metal bootstrap. Rebuilds the appliance onto a FRESH Raspberry Pi OS
+# (32-bit; the unit was built on Buster / Python 3.7). The hardware is a Raspberry Pi Compute
+# Module 3+ with soldered eMMC (NO SD card) on the AmpliPi board + a HiFiBerry-style I2S DAC +
+# the 6-zone preamp (I2C) + an ILI9341 screen on the secondary SPI bus.
 #
+# Get an OS onto the eMMC FIRST via rpiboot (see RECOVERY.md "Path B"), then on the Pi:
 #   git clone <repo> ambiance-amplipi && cd ambiance-amplipi && ./scripts/bootstrap.sh
 #
 # Then REBOOT once (the DAC/SPI/I2C overlays only load at boot). See RECOVERY.md.
